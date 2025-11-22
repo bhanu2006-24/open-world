@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Realm of Legends: Premium Edition</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        :root {
+            --ui-bg: #191521;
+            --ui-border: #3f3452;
+            --accent: #d4af37; /* Gold */
+            --health: #e74c3c;
+            --mana: #3498db;
+            --xp: #9b59b6;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #050505;
+            font-family: 'VT323', monospace;
+            user-select: none;
+            -webkit-user-select: none;
+            color: white;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated; /* Critical for retro look */
+        }
+
+        /* UI LAYER */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        /* HUD */
+        .hud-panel {
+            background: rgba(25, 21, 33, 0.85);
+            border: 2px solid var(--ui-border);
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            pointer-events: auto;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .stat-group { display: flex; flex-direction: column; width: 200px; }
+        .bar-wrap {
+            height: 16px; background: #111; border: 1px solid #555; margin: 2px 0;
+            position: relative;
+        }
+        .bar-fill { height: 100%; transition: width 0.2s; }
+        .hp-fill { background: var(--health); }
+        .xp-fill { background: var(--xp); }
+        .label { font-size: 18px; color: #ccc; text-shadow: 1px 1px 0 #000; }
+        
+        .currency { 
+            font-size: 24px; color: var(--accent); 
+            display: flex; align-items: center; gap: 5px;
+        }
+
+        .minimap-container {
+            width: 150px; height: 150px;
+            border: 3px solid var(--ui-border);
+            background: #000;
+            border-radius: 50%; /* Circular map */
+            overflow: hidden;
+            position: relative;
+            opacity: 0.9;
+        }
+        #minimap { width: 100%; height: 100%; display: block; }
+
+        /* MENUS */
+        .modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+            backdrop-filter: blur(4px);
+            transition: opacity 0.3s;
+        }
+        .hidden { opacity: 0; pointer-events: none; display: none !important; }
+
+        .window {
+            width: 800px; max-width: 95%;
+            background: var(--ui-bg);
+            border: 4px double var(--ui-border);
+            padding: 30px;
+            position: relative;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+        }
+
+        h1 { 
+            font-size: 64px; color: var(--accent); margin: 0 0 20px 0; 
+            text-shadow: 4px 4px 0 #000; letter-spacing: 2px;
+        }
+        h2 { color: #aaa; border-bottom: 1px solid #444; padding-bottom: 10px; }
+
+        button {
+            background: #2a2238;
+            color: white;
+            border: 2px solid var(--ui-border);
+            font-family: 'VT323', monospace;
+            font-size: 24px;
+            padding: 10px 40px;
+            cursor: pointer;
+            transition: all 0.1s;
+            margin: 10px;
+            box-shadow: 0 4px 0 #15101d;
+        }
+        button:hover { background: #3d3152; transform: translateY(-2px); }
+        button:active { transform: translateY(2px); box-shadow: 0 0 0; }
+
+        .inventory-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            background: #111;
+            border: 2px inset #333;
+        }
+
+        .inv-slot {
+            width: 64px; height: 64px;
+            background: #222;
+            border: 2px solid #444;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: pointer;
+            position: relative;
+        }
+        .inv-slot:hover { border-color: var(--accent); background: #2a2a2a; }
+        .inv-slot img { width: 32px; height: 32px; image-rendering: pixelated; }
+        .inv-count { position: absolute; bottom: 2px; right: 4px; font-size: 16px; color: #fff; }
+
+        /* NOTIFICATIONS */
+        #toast-area {
+            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%);
+            text-align: center; width: 100%; pointer-events: none;
+        }
+        .toast {
+            background: linear-gradient(90deg, transparent, rgba(0,0,0,0.8), transparent);
+            color: var(--accent);
+            font-size: 24px;
+            padding: 5px;
+            margin-top: 5px;
+            text-shadow: 1px 1px 0 #000;
+            animation: floatUp 2s forwards;
+        }
+        @keyframes floatUp {
+            0% { opacity: 0; transform: translateY(20px); }
+            20% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-20px); }
+        }
+
+        .controls-hint {
+            font-size: 16px; color: #666; margin-top: 20px;
+        }
+        
+        .key {
+            display: inline-block;
+            background: #333; border-bottom: 3px solid #111;
+            padding: 2px 6px; border-radius: 4px; color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="main-canvas"></canvas>
+    
+    <!-- UI Layer -->
+    <div id="ui-layer">
+        <!-- Top Left HUD -->
+        <div class="hud-panel" style="align-self: flex-start;">
+            <div class="stat-group">
+                <div class="label">HEALTH <span id="hp-val">100/100</span></div>
+                <div class="bar-wrap"><div id="hp-bar" class="bar-fill hp-fill" style="width: 100%"></div></div>
+                <div class="label">XP LVL <span id="lvl-val" style="color: var(--accent)">1</span></div>
+                <div class="bar-wrap"><div id="xp-bar" class="bar-fill xp-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="currency">
+                <span>🪙</span> <span id="gold-val">0</span>
+            </div>
+        </div>
+
+        <!-- Top Right Minimap -->
+        <div class="minimap-container" style="position: absolute; top: 20px; right: 20px;">
+            <canvas id="minimap"></canvas>
+        </div>
+
+        <!-- Center Notifications -->
+        <div id="toast-area"></div>
+
+        <!-- Bottom Hints -->
+        <div style="text-align: center; opacity: 0.7; font-size: 18px; margin-bottom: 10px;">
+            <span class="key">WASD</span> Move &nbsp; 
+            <span class="key">SPACE</span> Attack &nbsp; 
+            <span class="key">E</span> Interact &nbsp; 
+            <span class="key">I</span> Inventory &nbsp; 
+            <span class="key">ESC</span> Menu
+        </div>
+    </div>
+
+    <!-- Start/Menu Screen -->
+    <div id="menu-screen" class="modal">
+        <div class="window">
+            <h1>REALM OF LEGENDS</h1>
+            <p style="font-size: 24px; color: #888;">PREMIUM EDITION</p>
+            <div style="margin: 40px 0;">
+                <button onclick="Game.start()">ENTER WORLD</button>
+                <br>
+                <button onclick="Game.clearSave()" style="font-size: 18px; background: #382222; margin-top: 20px;">RESET DATA</button>
+            </div>
+            <div class="controls-hint">
+                A living, breathing open world generated in your browser.
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Screen -->
+    <div id="inventory-screen" class="modal hidden">
+        <div class="window">
+            <h1>INVENTORY</h1>
+            <div style="display:flex; justify-content: space-around; text-align: left;">
+                <div>
+                    <h2>Stats</h2>
+                    <p>⚔️ Damage: <span id="stats-dmg">10</span></p>
+                    <p>🛡️ Armor: <span id="stats-def">0</span></p>
+                    <p>⚡ Speed: <span id="stats-spd">100</span></p>
+                </div>
+                <div style="width: 400px;">
+                    <h2>Bag</h2>
+                    <div id="inv-grid" class="inventory-grid"></div>
+                </div>
+            </div>
+            <button onclick="UI.toggleInventory()">CLOSE</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * REALM OF LEGENDS: PREMIUM EDITION
+ * Single File Engine
+ */
+
+/* --- 1. ASSET GENERATOR (Procedural Pixel Art) --- */
+const Assets = {
+    cache: {},
+    
+    // Helper to create a canvas with pixel art
+    createSprite(key, width, height, drawFn) {
+        if (this.cache[key]) return this.cache[key];
+        const c = document.createElement('canvas');
+        c.width = width; c.height = height;
+        const ctx = c.getContext('2d');
+        drawFn(ctx, width, height);
+        this.cache[key] = c;
+        return c;
+    },
+
+    init() {
+        // PLAYER
+        this.createSprite('player_idle', 32, 32, (ctx) => {
+            // Body
+            ctx.fillStyle = '#333'; 
+            ctx.fillRect(10, 14, 12, 10); 
+            // Head
+            ctx.fillStyle = '#fec'; 
+            ctx.fillRect(10, 4, 12, 10);
+            // Eyes
+            ctx.fillStyle = '#000';
+            ctx.fillRect(18, 7, 2, 2);
+            // Helmet/Hair
+            ctx.fillStyle = '#d4af37';
+            ctx.fillRect(10, 2, 12, 4);
+            ctx.fillRect(8, 4, 2, 8);
+            // Sword
+            ctx.fillStyle = '#aaa';
+            ctx.fillRect(24, 10, 4, 16);
+            ctx.fillStyle = '#852';
+            ctx.fillRect(23, 24, 6, 2);
+        });
+
+        // ENEMY: ORC
+        this.createSprite('orc', 32, 32, (ctx) => {
+            ctx.fillStyle = '#4a7'; // Green skin
+            ctx.fillRect(8, 6, 16, 20);
+            ctx.fillStyle = '#253'; // Darker spots
+            ctx.fillRect(10, 8, 4, 4);
+            ctx.fillStyle = '#822'; // Warpaint
+            ctx.fillRect(18, 10, 4, 2);
+            ctx.fillStyle = '#111'; // Eyes
+            ctx.fillRect(12, 10, 2, 2);
+            ctx.fillRect(18, 10, 2, 2);
+            ctx.fillStyle = '#543'; // Leather armor
+            ctx.fillRect(8, 20, 16, 6);
+        });
+
+        // ENEMY: SLIME
+        this.createSprite('slime', 32, 32, (ctx) => {
+            ctx.fillStyle = 'rgba(50, 200, 255, 0.8)';
+            ctx.beginPath();
+            ctx.arc(16, 22, 10, Math.PI, 0);
+            ctx.fill();
+            ctx.fillRect(6, 22, 20, 6);
+            // Shine
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(10, 18, 4, 4);
+        });
+
+        // TILE: GRASS
+        this.createSprite('tile_grass', 32, 32, (ctx) => {
+            ctx.fillStyle = '#2d5a27'; ctx.fillRect(0,0,32,32);
+            ctx.fillStyle = '#3e7a36'; // Blades
+            for(let i=0; i<10; i++) ctx.fillRect(Math.random()*30, Math.random()*30, 2, 2);
+        });
+
+        // TILE: WATER
+        this.createSprite('tile_water', 32, 32, (ctx) => {
+            ctx.fillStyle = '#275a75'; ctx.fillRect(0,0,32,32);
+            ctx.fillStyle = '#3689aa'; // Foam
+            for(let i=0; i<5; i++) ctx.fillRect(Math.random()*30, Math.random()*30, 4, 1);
+        });
+        
+        // TILE: SAND
+        this.createSprite('tile_sand', 32, 32, (ctx) => {
+            ctx.fillStyle = '#d4c585'; ctx.fillRect(0,0,32,32);
+            ctx.fillStyle = '#bfb070';
+            for(let i=0; i<8; i++) ctx.fillRect(Math.random()*30, Math.random()*30, 1, 1);
+        });
+
+        // TILE: TREE (Object)
+        this.createSprite('obj_tree', 64, 64, (ctx) => {
+            // Trunk
+            ctx.fillStyle = '#5d4037';
+            ctx.fillRect(26, 40, 12, 24);
+            // Leaves
+            ctx.fillStyle = '#1b5e20';
+            ctx.beginPath();
+            ctx.arc(32, 30, 25, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#2e7d32';
+            ctx.beginPath();
+            ctx.arc(32, 25, 18, 0, Math.PI*2);
+            ctx.fill();
+        });
+
+        // ITEMS
+        this.createSprite('item_potion', 32, 32, (ctx) => {
+            ctx.fillStyle = '#fff'; ctx.fillRect(12, 8, 8, 20); // Bottle
+            ctx.fillStyle = '#f00'; ctx.fillRect(14, 12, 4, 14); // Liquid
+            ctx.fillStyle = '#852'; ctx.fillRect(12, 6, 8, 2); // Cork
+        });
+    }
+};
+
+/* --- 2. AUDIO ENGINE (Web Audio API) --- */
+const AudioSys = {
+    ctx: null,
+    init() {
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        this.ctx = new AudioContext();
+    },
+    play(type) {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        const now = this.ctx.currentTime;
+
+        switch (type) {
+            case 'hit': // Low thud
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.2);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+                break;
+            case 'sword': // Swoosh noise (approximated with slide)
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.linearRampToValueAtTime(100, now + 0.15);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+                break;
+            case 'coin': // High ding
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1200, now);
+                osc.frequency.setValueAtTime(1800, now + 0.1);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                osc.start(now);
+                osc.stop(now + 0.4);
+                break;
+            case 'levelup': 
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.setValueAtTime(554, now + 0.1);
+                osc.frequency.setValueAtTime(659, now + 0.2);
+                gain.gain.linearRampToValueAtTime(0, now + 0.6);
+                osc.start(now);
+                osc.stop(now + 0.6);
+                break;
+        }
+    }
+};
+
+/* --- 3. WORLD GENERATION (Simplex-ish Noise) --- */
+const World = {
+    width: 200,
+    height: 200,
+    tileSize: 32,
+    map: [],
+    objects: [], // Trees, rocks
+    
+    // Simple noise function
+    noise(x, y) {
+        let val = Math.sin(x * 0.1) + Math.cos(y * 0.1) + Math.sin((x+y)*0.05);
+        return val; // Range approx -2 to 2
+    },
+
+    generate() {
+        this.map = new Array(this.width * this.height);
+        this.objects = [];
+
+        for (let y = 0; y < this.height; y++) {
+            for (let x = 0; x < this.width; x++) {
+                // Biome logic
+                const n = this.noise(x, y) + Math.random() * 0.2;
+                let type = 'grass';
+                
+                if (n < -1.2) type = 'deep_water';
+                else if (n < -0.5) type = 'water';
+                else if (n < -0.2) type = 'sand';
+                else if (n > 1.2) type = 'mountain';
+                else type = 'grass'; // Default
+
+                this.map[y * this.width + x] = type;
+
+                // Populate Objects
+                if (type === 'grass' && Math.random() < 0.05) {
+                    this.objects.push({x: x * this.tileSize, y: y * this.tileSize, type: 'tree'});
+                }
+            }
+        }
+    },
+
+    getTile(x, y) {
+        if (x < 0 || x >= this.width || y < 0 || y >= this.height) return 'water';
+        return this.map[y * this.width + x];
+    },
+
+    isSolid(x, y) {
+        const tx = Math.floor(x / this.tileSize);
+        const ty = Math.floor(y / this.tileSize);
+        const t = this.getTile(tx, ty);
+        if (t === 'water' || t === 'deep_water' || t === 'mountain') return true;
+        return false;
+    }
+};
+
+/* --- 4. ENTITIES & GAMEPLAY --- */
+class Entity {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.type = type;
+        this.w = 32; this.h = 32;
+        this.vx = 0; this.vy = 0;
+        this.dead = false;
+        this.flash = 0;
+    }
+    update(dt) {
+        this.x += this.vx;
+        this.y += this.vy;
+        if (this.flash > 0) this.flash--;
+    }
+    draw(ctx, camX, camY) {
+        if (this.flash > 0 && Math.floor(Date.now()/50)%2===0) return; // Blink effect
+        const sprite = Assets.cache[this.type] || Assets.cache['orc'];
+        
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(this.x - camX + 16, this.y - camY + 28, 10, 4, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.drawImage(sprite, this.x - camX, this.y - camY);
+    }
+    getRect() {
+        return {x: this.x+4, y: this.y+4, w: this.w-8, h: this.h-8};
+    }
+}
+
+class Player extends Entity {
+    constructor(x, y) {
+        super(x, y, 'player_idle');
+        this.stats = { hp: 100, maxHp: 100, dmg: 10, xp: 0, lvl: 1, gold: 0 };
+        this.inventory = [];
+        this.cooldown = 0;
+        this.speed = 180; // px per sec
+    }
+    update(dt) {
+        this.vx = 0; this.vy = 0;
+        if (Input.keys['w']) this.vy = -this.speed * dt;
+        if (Input.keys['s']) this.vy = this.speed * dt;
+        if (Input.keys['a']) this.vx = -this.speed * dt;
+        if (Input.keys['d']) this.vx = this.speed * dt;
+
+        // Collision
+        if (World.isSolid(this.x + this.vx + 16, this.y + 16)) this.vx = 0;
+        if (World.isSolid(this.x + 16, this.y + this.vy + 16)) this.vy = 0;
+
+        super.update(dt);
+
+        // Attack
+        if (Input.keys[' '] && this.cooldown <= 0) {
+            this.attack();
+            this.cooldown = 0.4; // seconds
+        }
+        if (this.cooldown > 0) this.cooldown -= dt;
+    }
+    
+    attack() {
+        AudioSys.play('sword');
+        Game.shake = 5;
+        // Attack logic (Hitbox in front)
+        const hitRange = 50;
+        const center = {x: this.x + 16, y: this.y + 16};
+        
+        Game.particles.push(new Particle(center.x, center.y, '#fff', 10));
+
+        Game.entities.forEach(e => {
+            if (e === this) return;
+            const d = Math.hypot((e.x+16)-center.x, (e.y+16)-center.y);
+            if (d < hitRange) {
+                e.takeDamage(this.stats.dmg);
+                // Knockback
+                e.x += (e.x - this.x) * 2;
+                e.y += (e.y - this.y) * 2;
+            }
+        });
+    }
+
+    gainXp(amount) {
+        this.stats.xp += amount;
+        if (this.stats.xp >= this.stats.lvl * 100) {
+            this.stats.xp = 0;
+            this.stats.lvl++;
+            this.stats.maxHp += 20;
+            this.stats.hp = this.stats.maxHp;
+            this.stats.dmg += 5;
+            AudioSys.play('levelup');
+            UI.notify("LEVEL UP! Stats Increased", "#gold");
+            Game.particles.push(new Particle(this.x, this.y, '#fd0', 30));
+        }
+    }
+}
+
+class Enemy extends Entity {
+    constructor(x, y, type) {
+        super(x, y, type);
+        this.hp = type === 'orc' ? 30 : 15;
+        this.speed = type === 'orc' ? 60 : 40;
+    }
+    takeDamage(amount) {
+        this.hp -= amount;
+        this.flash = 10;
+        AudioSys.play('hit');
+        Game.texts.push(new FloatingText(this.x, this.y, `-${amount}`, '#fff'));
+        Game.particles.push(new Particle(this.x+16, this.y+16, '#a00', 5)); // Blood
+
+        if (this.hp <= 0) {
+            this.dead = true;
+            Game.player.gainXp(10);
+            if (Math.random() < 0.3) Game.loot.push(new Loot(this.x, this.y));
+        }
+    }
+    update(dt) {
+        // AI: Chase Player
+        const p = Game.player;
+        const dist = Math.hypot(p.x - this.x, p.y - this.y);
+        
+        if (dist < 200 && dist > 30) {
+            const angle = Math.atan2(p.y - this.y, p.x - this.x);
+            this.vx = Math.cos(angle) * this.speed * dt;
+            this.vy = Math.sin(angle) * this.speed * dt;
+        } else {
+            this.vx = 0; this.vy = 0;
+        }
+
+        // Attack Player
+        if (dist < 30 && Math.random() < 0.05) {
+            p.stats.hp -= 5;
+            Game.texts.push(new FloatingText(p.x, p.y, "-5", "red"));
+            Game.shake = 10;
+            AudioSys.play('hit');
+        }
+        super.update(dt);
+    }
+}
+
+class Loot {
+    constructor(x, y) {
+        this.x = x; this.y = y;
+        this.w = 32; this.h = 32;
+        this.bounce = 0;
+    }
+    draw(ctx, camX, camY) {
+        this.bounce += 0.1;
+        const offY = Math.sin(this.bounce) * 5;
+        ctx.drawImage(Assets.cache['item_potion'], this.x - camX, this.y - camY + offY);
+    }
+}
+
+class Particle {
+    constructor(x, y, color, count) {
+        this.parts = [];
+        for(let i=0; i<count; i++) {
+            this.parts.push({
+                x: x, y: y, 
+                vx: (Math.random()-0.5)*100, 
+                vy: (Math.random()-0.5)*100,
+                life: 1.0,
+                color: color
+            });
+        }
+    }
+    update(dt) {
+        this.parts.forEach(p => {
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.life -= dt * 2;
+        });
+        this.parts = this.parts.filter(p => p.life > 0);
+    }
+    draw(ctx, camX, camY) {
+        this.parts.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x - camX, p.y - camY, 3, 3);
+        });
+        ctx.globalAlpha = 1;
+    }
+    isDead() { return this.parts.length === 0; }
+}
+
+class FloatingText {
+    constructor(x, y, text, color) {
+        this.x = x; this.y = y; this.text = text; this.color = color;
+        this.life = 1.0; this.vy = -30;
+    }
+    update(dt) {
+        this.y += this.vy * dt;
+        this.life -= dt;
+    }
+    draw(ctx, camX, camY) {
+        ctx.globalAlpha = this.life;
+        ctx.fillStyle = this.color;
+        ctx.font = "20px 'VT323'";
+        ctx.fillText(this.text, this.x - camX + 16, this.y - camY);
+        ctx.globalAlpha = 1;
+    }
+}
+
+/* --- 5. CORE ENGINE --- */
+const Input = {
+    keys: {},
+    init() {
+        window.addEventListener('keydown', e => {
+            this.keys[e.key] = true;
+            if (e.key === 'Escape') Game.togglePause();
+            if (e.key === 'i' || e.key === 'I') UI.toggleInventory();
+            if (e.key === 'e' || e.key === 'E') Game.interact();
+        });
+        window.addEventListener('keyup', e => this.keys[e.key] = false);
+    }
+};
+
+const Game = {
+    canvas: null, ctx: null,
+    player: null,
+    entities: [], loot: [], particles: [], texts: [],
+    lastTime: 0,
+    shake: 0,
+    state: 'MENU', // MENU, PLAY, PAUSE
+    cam: {x:0, y:0},
+    dayTime: 0, // 0 to 1
+
+    init() {
+        this.canvas = document.getElementById('main-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        
+        Assets.init();
+        Input.init();
+        
+        // Initial Render for Menu bg
+        this.ctx.fillStyle = '#111';
+        this.ctx.fillRect(0,0,this.canvas.width, this.canvas.height);
+    },
+
+    start() {
+        AudioSys.init();
+        document.getElementById('menu-screen').classList.add('hidden');
+        
+        // Try Load
+        const save = localStorage.getItem('rol_save');
+        if (save) {
+            this.loadGame(JSON.parse(save));
+        } else {
+            this.newGame();
+        }
+
+        this.state = 'PLAY';
+        this.lastTime = performance.now() / 1000;
+        requestAnimationFrame(l => this.loop(l));
+        
+        // Auto Save Loop
+        setInterval(() => this.saveGame(), 10000);
+    },
+
+    newGame() {
+        World.generate();
+        
+        // FIX: Find a safe spawn point (Grass/Sand) instead of hardcoded center
+        let spawnX = 0;
+        let spawnY = 0;
+        let foundSpot = false;
+        
+        const cx = Math.floor(World.width / 2);
+        const cy = Math.floor(World.height / 2);
+        
+        // Spiral search for land
+        for (let r = 0; r < 100; r++) {
+            // Search range [-r to +r]
+            for (let y = cy - r; y <= cy + r; y++) {
+                for (let x = cx - r; x <= cx + r; x++) {
+                    // Check bounds
+                    if (x >= 0 && x < World.width && y >= 0 && y < World.height) {
+                        // Check if solid (water/mountain are solid)
+                        // We pass pixel coords to isSolid, but here we have grid coords, so multiply by tileSize
+                        if (!World.isSolid(x * World.tileSize, y * World.tileSize)) {
+                            spawnX = x * World.tileSize;
+                            spawnY = y * World.tileSize;
+                            foundSpot = true;
+                            break;
+                        }
+                    }
+                }
+                if (foundSpot) break;
+            }
+            if (foundSpot) break;
+        }
+
+        this.player = new Player(spawnX, spawnY);
+        
+        // Spawn Mobs around the player's actual spawn point
+        this.entities = [];
+        for(let i=0; i<50; i++) {
+            const ex = spawnX + (Math.random()-0.5)*2000;
+            const ey = spawnY + (Math.random()-0.5)*2000;
+            if(!World.isSolid(ex, ey)) {
+                this.entities.push(new Enemy(ex, ey, Math.random() > 0.5 ? 'orc' : 'slime'));
+            }
+        }
+        
+        UI.notify("World Generated!", "#4f4");
+    },
+
+    interact() {
+        // Check for loot
+        let picked = false;
+        this.loot = this.loot.filter(l => {
+            const d = Math.hypot(this.player.x - l.x, this.player.y - l.y);
+            if (d < 40) {
+                this.player.inventory.push({id: 'potion', count: 1});
+                this.player.stats.gold += 10;
+                AudioSys.play('coin');
+                this.texts.push(new FloatingText(this.player.x, this.player.y, "+Potion", "gold"));
+                picked = true;
+                return false;
+            }
+            return true;
+        });
+        if (!picked) {
+            // Maybe use potion?
+            const pots = this.player.inventory.find(i => i.id === 'potion');
+            if (pots && this.player.stats.hp < this.player.stats.maxHp) {
+                this.player.stats.hp += 50;
+                if(this.player.stats.hp > this.player.stats.maxHp) this.player.stats.hp = this.player.stats.maxHp;
+                // Remove one potion - logic simplified for array
+                this.player.inventory.pop(); 
+                AudioSys.play('levelup'); // heal sound
+                this.texts.push(new FloatingText(this.player.x, this.player.y, "+50 HP", "green"));
+            }
+        }
+    },
+
+    loop(now) {
+        requestAnimationFrame(l => this.loop(l));
+        const t = now / 1000;
+        const dt = Math.min(t - this.lastTime, 0.1);
+        this.lastTime = t;
+
+        if (this.state !== 'PLAY') return;
+
+        this.update(dt);
+        this.draw();
+        UI.update();
+    },
+
+    update(dt) {
+        // Day Cycle
+        this.dayTime += dt * 0.01; // Slow cycle
+        
+        // Shake decay
+        if(this.shake > 0) this.shake -= dt * 20;
+        if(this.shake < 0) this.shake = 0;
+
+        this.player.update(dt);
+        
+        // Camera Follow
+        this.cam.x = this.player.x - this.canvas.width / 2;
+        this.cam.y = this.player.y - this.canvas.height / 2;
+
+        // Entities
+        this.entities.forEach(e => e.update(dt));
+        this.entities = this.entities.filter(e => !e.dead);
+
+        // Particles & Text
+        this.particles.forEach(p => p.update(dt));
+        this.particles = this.particles.filter(p => !p.isDead());
+        this.texts.forEach(t => t.update(dt));
+        this.texts = this.texts.filter(t => t.life > 0);
+
+        // Respawn logic
+        if (this.entities.length < 20) {
+            const angle = Math.random() * Math.PI * 2;
+            const dist = 500;
+            const ex = this.player.x + Math.cos(angle) * dist;
+            const ey = this.player.y + Math.sin(angle) * dist;
+            if (!World.isSolid(ex, ey)) {
+                this.entities.push(new Enemy(ex, ey, Math.random() > 0.3 ? 'orc' : 'slime'));
+            }
+        }
+        
+        // Check Game Over
+        if (this.player.stats.hp <= 0) {
+            alert("YOU DIED. Level: " + this.player.stats.lvl);
+            this.clearSave();
+            location.reload();
+        }
+    },
+
+    draw() {
+        // Background Clear
+        this.ctx.fillStyle = '#000';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // Shake
+        const sx = (Math.random() - 0.5) * this.shake;
+        const sy = (Math.random() - 0.5) * this.shake;
+
+        this.ctx.save();
+        this.ctx.translate(-this.cam.x + sx, -this.cam.y + sy);
+
+        // 1. Draw Tiles (Optimized Culling)
+        const startCol = Math.floor(this.cam.x / World.tileSize);
+        const endCol = startCol + (this.canvas.width / World.tileSize) + 1;
+        const startRow = Math.floor(this.cam.y / World.tileSize);
+        const endRow = startRow + (this.canvas.height / World.tileSize) + 1;
+
+        for (let y = startRow; y <= endRow; y++) {
+            for (let x = startCol; x <= endCol; x++) {
+                const tile = World.getTile(x, y);
+                let sprite = Assets.cache['tile_water'];
+                if (tile === 'grass') sprite = Assets.cache['tile_grass'];
+                if (tile === 'sand') sprite = Assets.cache['tile_sand'];
+                
+                // Draw Tile
+                this.ctx.drawImage(sprite, x * World.tileSize, y * World.tileSize);
+                
+                // Draw Water Reflection
+                if (tile === 'water') {
+                    this.ctx.fillStyle = `rgba(255,255,255,${Math.sin(this.dayTime*5 + x)*0.1})`;
+                    this.ctx.fillRect(x * World.tileSize, y * World.tileSize, 32, 32);
+                }
+            }
+        }
+
+        // 2. Draw Trees & Objects (Sorted by Y for pseudo-3D)
+        // We just draw trees that are in view
+        World.objects.forEach(o => {
+            if (o.x > this.cam.x - 100 && o.x < this.cam.x + this.canvas.width + 100 &&
+                o.y > this.cam.y - 100 && o.y < this.cam.y + this.canvas.height + 100) {
+                this.ctx.drawImage(Assets.cache['obj_tree'], o.x - 16, o.y - 32);
+            }
+        });
+
+        // 3. Loot
+        this.loot.forEach(l => l.draw(this.ctx, 0, 0));
+
+        // 4. Entities (Sort Player and Enemies by Y)
+        const renderList = [...this.entities, this.player];
+        renderList.sort((a, b) => a.y - b.y);
+        renderList.forEach(e => e.draw(this.ctx, 0, 0));
+
+        // 5. Particles
+        this.particles.forEach(p => p.draw(this.ctx, 0, 0));
+        this.texts.forEach(t => t.draw(this.ctx, 0, 0));
+
+        this.ctx.restore();
+
+        // 6. Lighting Overlay (Day/Night)
+        const light = (Math.sin(this.dayTime) + 1) / 2; // 0 to 1
+        const darkness = 0.6 - (light * 0.6); // Max darkness 0.6
+        this.ctx.fillStyle = `rgba(0, 0, 20, ${darkness})`;
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+        // 7. Minimap Draw
+        UI.drawMinimap();
+    },
+
+    resize() {
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+        this.ctx.imageSmoothingEnabled = false;
+    },
+
+    togglePause() {
+        if(this.state === 'PLAY') {
+            this.state = 'PAUSE';
+            UI.notify("PAUSED");
+        } else if (this.state === 'PAUSE') {
+            this.state = 'PLAY';
+        }
+    },
+
+    saveGame() {
+        const data = {
+            player: this.player.stats,
+            inv: this.player.inventory,
+            pos: {x: this.player.x, y: this.player.y}
+        };
+        localStorage.setItem('rol_save', JSON.stringify(data));
+        UI.notify("Game Saved", "#aaa");
+    },
+
+    loadGame(data) {
+        this.newGame(); // Init world first to generate map
+        
+        this.player.stats = data.player;
+        this.player.inventory = data.inv;
+        
+        // Safety check: If loaded position is in water (due to bug), move to safe spot
+        if (World.isSolid(data.pos.x, data.pos.y)) {
+             UI.notify("Stuck in water? Moving to safety...", "orange");
+             // Use the spawn point found by newGame() which is safe
+        } else {
+             this.player.x = data.pos.x;
+             this.player.y = data.pos.y;
+        }
+        
+        UI.notify("Welcome Back!", "#gold");
+    },
+
+    clearSave() {
+        localStorage.removeItem('rol_save');
+        location.reload();
+    }
+};
+
+/* --- 6. UI MANAGER --- */
+const UI = {
+    minimapCanvas: null,
+    mCtx: null,
+
+    update() {
+        // HUD
+        const p = Game.player;
+        document.getElementById('hp-val').innerText = `${Math.floor(p.stats.hp)}/${p.stats.maxHp}`;
+        document.getElementById('hp-bar').style.width = `${(p.stats.hp/p.stats.maxHp)*100}%`;
+        document.getElementById('xp-bar').style.width = `${(p.stats.xp/(p.stats.lvl*100))*100}%`;
+        document.getElementById('lvl-val').innerText = p.stats.lvl;
+        document.getElementById('gold-val').innerText = p.stats.gold;
+    },
+
+    notify(msg, color='#fff') {
+        const area = document.getElementById('toast-area');
+        const el = document.createElement('div');
+        el.className = 'toast';
+        el.style.color = color;
+        el.innerText = msg;
+        area.appendChild(el);
+        setTimeout(() => el.remove(), 2000);
+    },
+
+    toggleInventory() {
+        const el = document.getElementById('inventory-screen');
+        el.classList.toggle('hidden');
+        if (!el.classList.contains('hidden')) {
+            // Update inv UI
+            document.getElementById('stats-dmg').innerText = Game.player.stats.dmg;
+            document.getElementById('stats-spd').innerText = Game.player.speed;
+            
+            const grid = document.getElementById('inv-grid');
+            grid.innerHTML = '';
+            Game.player.inventory.forEach(item => {
+                const slot = document.createElement('div');
+                slot.className = 'inv-slot';
+                const img = new Image();
+                img.src = Assets.cache['item_' + item.id].toDataURL();
+                slot.appendChild(img);
+                
+                // Click to use
+                slot.onclick = () => {
+                    Game.interact(); // Trigger potion use logic
+                    this.toggleInventory(); // Close and refresh
+                    setTimeout(() => this.toggleInventory(), 50);
+                };
+
+                grid.appendChild(slot);
+            });
+        }
+    },
+
+    drawMinimap() {
+        if(!this.minimapCanvas) {
+            this.minimapCanvas = document.getElementById('minimap');
+            this.mCtx = this.minimapCanvas.getContext('2d');
+        }
+        const size = 150;
+        this.minimapCanvas.width = size;
+        this.minimapCanvas.height = size;
+        
+        const mx = this.mCtx;
+        mx.fillStyle = '#000'; mx.fillRect(0,0,size,size);
+        
+        const range = 2000; // Range in pixels to show
+        const scale = size / range;
+
+        mx.save();
+        mx.translate(size/2, size/2);
+        
+        // Draw Entities relative to player
+        Game.entities.forEach(e => {
+            const rx = (e.x - Game.player.x) * scale;
+            const ry = (e.y - Game.player.y) * scale;
+            if(Math.abs(rx) < size/2 && Math.abs(ry) < size/2) {
+                mx.fillStyle = 'red';
+                mx.fillRect(rx, ry, 2, 2);
+            }
+        });
+
+        // Player
+        mx.fillStyle = '#0f0';
+        mx.fillRect(-2, -2, 4, 4);
+        
+        mx.restore();
+    }
+};
+
+// Start
+Game.init();
+
+</script>
+</body>
+</html>
