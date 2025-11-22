@@ -14,6 +14,7 @@
             --health: #e74c3c;
             --mana: #3498db;
             --xp: #9b59b6;
+            --skill: #f39c12;
             --stamina: #f1c40f;
         }
 
@@ -230,6 +231,8 @@
             <div class="stat-group">
                 <div class="label">HEALTH <span id="hp-val">100/100</span></div>
                 <div class="bar-wrap"><div id="hp-bar" class="bar-fill hp-fill" style="width: 100%"></div></div>
+                <div class="label">MANA <span id="mana-val">100/100</span></div>
+                <div class="bar-wrap"><div id="mana-bar" class="bar-fill mana-fill" style="width: 100%"></div></div>
                 <div class="label">XP LVL <span id="lvl-val" style="color: var(--accent)">1</span></div>
                 <div class="bar-wrap"><div id="xp-bar" class="bar-fill xp-fill" style="width: 0%"></div></div>
             </div>
@@ -258,6 +261,7 @@
             <span class="key">E</span> Interact &nbsp; 
             <span class="key">I</span> Inventory &nbsp; 
             <span class="key">ESC</span> Menu
+            <span class="key">K</span> Skills
         </div>
 
         <!-- Ability Cooldowns -->
@@ -265,6 +269,10 @@
             <div class="ability-slot">
                 <div id="whirlwind-cooldown" class="cooldown-overlay"></div>
                 <div class="ability-key">Q</div>
+            </div>
+            <div class="ability-slot" style="background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAARBJREFUWEftV8ENgCAQ3P/d6U4cQhA22U3YgXz2x4JvX4CQT0iJgG+2G2gJgG/aD7QCwPftB1oC4Pv2A60A8H37gVYA+L79QCuA+C8E4AVQf0xAdwVUwBdg8gK0gL4A0gJ4AmgJgCegJQCegJYAeAJqCWAnoCYAnYCaAHQCasJ1AOtS4sYVYB2gugA8gO4AqgK4A6gK4A6gKgA8gOoA8ACqA8ADqA4AD6A6ADyA6gDwAKoDwANdC+DeA+sU4N4D6xTg3gPrFODeA+sU4N4D6xTg3gPrFPBfA/gA/gAUeHkY2wAAAABJRU5ErkJggg==');">
+                <div id="fireball-cooldown" class="cooldown-overlay"></div>
+                <div class="ability-key">F</div>
             </div>
         </div>
     </div>
@@ -297,6 +305,7 @@
                     <p>⚔️ Damage: <span id="stats-dmg">0</span></p>
                     <p>🛡️ Armor: <span id="stats-def">0</span></p>
                     <p>⚡ Speed: <span id="stats-spd">0</span></p>
+                    <p>❤️ Regen: <span id="stats-regen">0/s</span></p>
                 </div>
                 <div style="width: 400px;">
                     <h2>Bag</h2>
@@ -326,6 +335,30 @@
                 <!-- Shop items will be added here by JS -->
             </div>
             <button onclick="UI.closeShop()">LEAVE</button>
+        </div>
+    </div>
+
+    <!-- Skill Tree Screen -->
+    <div id="skill-tree-screen" class="modal hidden">
+        <div class="window">
+            <h1>SKILL TREE</h1>
+            <p>Available Skill Points: <span id="skill-points-val" style="color: var(--skill);">0</span></p>
+            <div id="skill-tree-container" style="display: flex; justify-content: space-around; text-align: left; margin-top: 20px;">
+                <!-- Skill trees will be generated here by JS -->
+            </div>
+            <button onclick="UI.toggleSkillTree()">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Skill Tree Screen -->
+    <div id="skill-tree-screen" class="modal hidden">
+        <div class="window">
+            <h1>SKILL TREE</h1>
+            <p>Available Skill Points: <span id="skill-points-val" style="color: var(--skill);">0</span></p>
+            <div id="skill-tree-container" style="display: flex; justify-content: space-around; text-align: left; margin-top: 20px;">
+                <!-- Skill trees will be generated here by JS -->
+            </div>
+            <button onclick="UI.toggleSkillTree()">CLOSE</button>
         </div>
     </div>
 </div>
@@ -445,9 +478,29 @@ const Assets = {
             ctx.fillStyle = '#852'; ctx.fillRect(12, 24, 8, 4); // Hilt
         });
 
+        this.createSprite('item_battle_axe', 32, 32, (ctx) => {
+            ctx.fillStyle = '#852'; ctx.fillRect(14, 4, 4, 24); // Handle
+            ctx.fillStyle = '#aaa'; ctx.fillRect(10, 4, 12, 8); // Axe head
+        });
+
+        this.createSprite('item_bow', 32, 32, (ctx) => {
+            ctx.strokeStyle = '#852'; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(10, 16, 14, -Math.PI/2, Math.PI/2); ctx.stroke(); // Wood part
+            ctx.fillStyle = '#ccc'; ctx.fillRect(10, 2, 2, 28); // String
+        });
         this.createSprite('item_armor', 32, 32, (ctx) => {
             ctx.fillStyle = '#8d6e63'; ctx.fillRect(8, 6, 16, 20); // Body
             ctx.fillStyle = '#a1887f'; ctx.fillRect(10, 6, 12, 4); // Neckline
+        });
+
+        this.createSprite('item_steel_armor', 32, 32, (ctx) => {
+            ctx.fillStyle = '#b0bec5'; ctx.fillRect(8, 6, 16, 20); // Body
+            ctx.fillStyle = '#90a4ae'; ctx.fillRect(10, 6, 12, 4); // Neckline
+        });
+
+        this.createSprite('item_staff', 32, 32, (ctx) => {
+            ctx.fillStyle = '#8d6e63'; ctx.fillRect(14, 2, 4, 28); // Staff
+            ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(16, 6, 5, 0, Math.PI*2); ctx.fill(); // Gem
         });
 
         // NPCS
@@ -483,6 +536,36 @@ const Assets = {
             ctx.fillRect(10, 4, 12, 4);
         });
 
+        this.createSprite('npc_guard', 32, 32, (ctx) => {
+            ctx.fillStyle = '#78909c'; ctx.fillRect(8, 12, 16, 18); // Armor
+            ctx.fillStyle = '#fec'; ctx.fillRect(12, 6, 8, 8); // Face
+            ctx.fillStyle = '#546e7a'; ctx.fillRect(10, 4, 12, 6); // Helmet
+        });
+
+        this.createSprite('npc_blacksmith', 32, 32, (ctx) => {
+            ctx.fillStyle = '#6d4c41'; ctx.fillRect(8, 14, 16, 18); // Apron
+            ctx.fillStyle = '#fec'; ctx.fillRect(10, 6, 12, 10); // Face
+            ctx.fillStyle = '#455a64'; ctx.fillRect(10, 12, 12, 6); // Beard
+            ctx.fillStyle = '#ff7043'; ctx.fillRect(10, 4, 12, 4); // Hair
+        });
+
+        this.createSprite('npc_old_man', 32, 32, (ctx) => {
+            ctx.fillStyle = '#4e342e'; ctx.fillRect(8, 12, 16, 20); // Robe
+            ctx.fillStyle = '#fec'; ctx.fillRect(12, 8, 8, 8); // Face
+            ctx.fillStyle = '#e0e0e0'; ctx.fillRect(10, 14, 12, 8); // Beard
+        });
+
+        // BUILDINGS
+        this.createSprite('building_house', 96, 96, (ctx) => {
+            ctx.fillStyle = '#8d6e63'; ctx.fillRect(0, 32, 96, 64); // Walls
+            ctx.fillStyle = '#b71c1c'; ctx.fillRect(-10, 0, 116, 40); // Roof
+        });
+
+        this.createSprite('building_library', 96, 96, (ctx) => {
+            ctx.fillStyle = '#b0bec5'; ctx.fillRect(0, 32, 96, 64); // Walls
+            ctx.fillStyle = '#3f51b5'; ctx.fillRect(-10, 0, 116, 40); // Roof
+        });
+
         // ENEMY: SKELETON
         this.createSprite('skeleton', 32, 32, (ctx) => {
             ctx.fillStyle = '#e0e0e0'; // Bone color
@@ -504,10 +587,34 @@ const Assets = {
             ctx.fillRect(18, 15, 4, 4); ctx.fillRect(28, 15, 4, 4);
         });
 
+        // ENEMY: SAND GOLEM
+        this.createSprite('sand_golem', 32, 32, (ctx) => {
+            ctx.fillStyle = '#bfb070'; // Sand color
+            ctx.fillRect(6, 10, 20, 20); // Body
+            ctx.fillRect(4, 4, 8, 8); ctx.fillRect(20, 4, 8, 8); // Shoulders
+            ctx.fillStyle = '#d4af37'; ctx.fillRect(14, 14, 4, 4); // Core
+        });
+
+        // ENEMY: GHOST
+        this.createSprite('ghost', 32, 32, (ctx) => {
+            ctx.fillStyle = 'rgba(200, 220, 255, 0.7)';
+            ctx.beginPath(); ctx.arc(16, 16, 12, 0, Math.PI*2); ctx.fill();
+            ctx.fillRect(10, 20, 12, 10);
+            ctx.fillStyle = '#000'; ctx.fillRect(12, 12, 3, 3); ctx.fillRect(18, 12, 3, 3);
+        });
+
         // PROJECTILE: ARROW
         this.createSprite('projectile_arrow', 16, 16, (ctx) => {
             ctx.fillStyle = '#852'; ctx.fillRect(0, 7, 14, 2); // Shaft
             ctx.fillStyle = '#aaa'; ctx.fillRect(12, 6, 4, 4); // Head
+        });
+
+        // PROJECTILE: FIREBALL
+        this.createSprite('projectile_fireball', 16, 16, (ctx) => {
+            ctx.fillStyle = '#ff7043';
+            ctx.beginPath(); ctx.arc(8, 8, 8, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#fdd835';
+            ctx.beginPath(); ctx.arc(8, 8, 5, 0, Math.PI*2); ctx.fill();
         });
     }
 };
@@ -571,8 +678,8 @@ const AudioSys = {
 
 /* --- 3. WORLD GENERATION (Simplex-ish Noise) --- */
 const World = {
-    width: 200,
-    height: 200,
+    width: 400,
+    height: 400,
     tileSize: 32,
     map: [],
     objects: [], // Trees, rocks
@@ -620,6 +727,13 @@ const World = {
         const t = this.getTile(tx, ty);
         if (t === 'water' || t === 'deep_water' || t === 'mountain') return true;
         return false;
+    },
+
+    isWater(x, y) {
+        const tx = Math.floor(x / this.tileSize);
+        const ty = Math.floor(y / this.tileSize);
+        const t = this.getTile(tx, ty);
+        return (t === 'water' || t === 'deep_water');
     }
 };
 
@@ -659,13 +773,16 @@ class Entity {
 class Player extends Entity {
     constructor(x, y) {
         super(x, y, 'player_idle');
-        this.baseStats = { hp: 100, maxHp: 100, dmg: 5, def: 0, xp: 0, lvl: 1, gold: 0 };
+        this.baseStats = { hp: 100, maxHp: 100, mana: 50, maxMana: 50, dmg: 5, def: 0, xp: 0, lvl: 1, gold: 0, attackSpeed: 1.0, hpRegen: 0, manaRegen: 0.5, skillPoints: 0 };
         this.stats = {...this.baseStats};
         this.inventory = [];
         this.equipment = { weapon: null, armor: null };
+        this.skills = {}; // { skillId: level }
         this.cooldown = 0;
         this.speed = 180; // px per sec
+        this.attackAnim = 0; // For weapon swing animation
         this.abilityCooldowns = { whirlwind: 0 };
+        this.drownTimer = 0;
         this.activeQuest = null;
     }
     draw(ctx, camX, camY) {
@@ -689,55 +806,133 @@ class Player extends Entity {
 
         // Attack
         if (Input.keys[' '] && this.cooldown <= 0) {
+            const weaponType = this.equipment.weapon ? Items.get(this.equipment.weapon.id).type : 'sword';
+            const baseSpeed = { 'axe': 0.8, 'bow': 0.6, 'staff': 0.5, 'sword': 0.4 }[weaponType];
+            const attackSpeed = baseSpeed / this.stats.attackSpeed;
             this.attack();
-            this.cooldown = 0.4; // seconds
+            this.cooldown = attackSpeed; // seconds
+            this.attackAnim = 0.3; // Start animation
         }
         if (Input.keys['q'] && this.abilityCooldowns.whirlwind <= 0) {
             this.useWhirlwind();
         }
+        if (Input.keys['f'] && this.abilityCooldowns.fireball <= 0) {
+            const weaponType = this.equipment.weapon ? Items.get(this.equipment.weapon.id).type : null;
+            if (weaponType === 'staff' && this.stats.mana >= 10) {
+                this.useFireball();
+                this.baseStats.mana -= 10;
+            }
+        }
+        if (this.attackAnim > 0) this.attackAnim -= dt;
 
         // Cooldowns
         if (this.abilityCooldowns.whirlwind > 0) this.abilityCooldowns.whirlwind -= dt;
 
         if (this.cooldown > 0) this.cooldown -= dt;
+
+        // Health Regen
+        if (this.stats.hp < this.stats.maxHp && this.stats.hp > 0) {
+            this.baseStats.hp = Math.min(this.stats.maxHp, this.baseStats.hp + this.stats.hpRegen * dt);
+        }
+
+        // Mana Regen
+        if (this.stats.mana < this.stats.maxMana) {
+            this.baseStats.mana = Math.min(this.stats.maxMana, this.baseStats.mana + this.stats.manaRegen * dt);
+        }
+
+        // Drowning
+        if (World.isWater(this.x + 16, this.y + 16)) {
+            this.drownTimer += dt;
+            if (this.drownTimer > 2) { // 2 seconds grace period
+                this.takeDamage(5, true); // True for 'unblockable' damage
+                Game.texts.push(new FloatingText(this.x, this.y, "Drowning!", "cyan"));
+            }
+        } else {
+            this.drownTimer = 0;
+        }
     }
 
     drawEquipment(ctx, camX, camY) {
-        // Draw Sword
-        const swordColor = this.equipment.weapon ? '#aaa' : '#852'; // Steel vs Wood
-        ctx.fillStyle = swordColor;
-        ctx.fillRect(this.x - camX + 24, this.y - camY + 10, 4, 16);
-        ctx.fillStyle = '#852'; // Hilt
-        ctx.fillRect(this.x - camX + 23, this.y - camY + 24, 6, 2);
+        const weapon = this.equipment.weapon;
+        if (!weapon) return; // Don't draw if nothing equipped
+
+        const weaponType = weapon.id;
+        const weaponSprite = Assets.cache['item_' + weaponType];
+        ctx.save();
+        ctx.translate(this.x - camX + 16, this.y - camY + 16);
+
+        // Animation
+        if (this.attackAnim > 0) {
+            const swingProgress = (0.3 - this.attackAnim) / 0.3; // 0 to 1
+            const angle = Math.sin(swingProgress * Math.PI) * -1.5; // Swing arc
+            if (weaponType === 'battle_axe') {
+                ctx.rotate(angle * 1.2); // Wider swing for axe
+            } else {
+                ctx.rotate(angle);
+            }
+        }
+
+        // Draw weapon held out
+        if (weaponType === 'battle_axe') {
+            ctx.translate(10, -10); // Adjust position for axe
+            ctx.drawImage(weaponSprite, -16, -16);
+        } else if (weaponType === 'bow') {
+            ctx.translate(10, 0); ctx.drawImage(weaponSprite, -16, -16);
+        } else { // Sword
+            ctx.translate(10, 0); // Adjust position for sword
+            ctx.rotate(Math.PI / 4);
+            ctx.drawImage(weaponSprite, -16, -16);
+        }
+
+        ctx.restore();
     }
 
     recalculateStats() {
-        this.stats = {...this.baseStats}; // Reset to base
+        // Preserve current HP
+        const currentHp = this.baseStats.hp;
+
+        // Recalculate all stats from base
+        this.stats.dmg = this.baseStats.dmg;
+        this.stats.def = this.baseStats.def;
+        this.stats.maxHp = this.baseStats.maxHp;
+        this.stats.lvl = this.baseStats.lvl;
+        this.stats.xp = this.baseStats.xp;
+        this.stats.gold = this.baseStats.gold;
+        this.stats.maxMana = this.baseStats.maxMana;
+        this.stats.manaRegen = this.baseStats.manaRegen;
+        this.stats.attackSpeed = this.baseStats.attackSpeed;
+
         if (this.equipment.weapon) this.stats.dmg += this.equipment.weapon.power;
         if (this.equipment.armor) this.stats.def += this.equipment.armor.power;
-        this.stats.hp = this.baseStats.hp; // HP should not be recalculated this way
-        this.stats.maxHp = this.baseStats.maxHp;
+
+        // Apply skills
+
+        // Restore current HP, capped at new maxHP
+        this.baseStats.hp = Math.min(currentHp, this.stats.maxHp);
+        this.stats.hp = this.baseStats.hp;
     }
 
     attack() {
         AudioSys.play('sword');
         Game.shake = 5;
-        // Attack logic (Hitbox in front)
+        const center = { x: this.x + 16, y: this.y + 16 };
         const hitRange = 50;
-        const center = {x: this.x + 16, y: this.y + 16};
-        
-        Game.particles.push(new Particle(center.x, center.y, '#fff', 10));
+        const weaponType = this.equipment.weapon ? Items.get(this.equipment.weapon.id).type : 'sword';
 
-        Game.entities.forEach(e => {
-            if (e === this) return;
-            const d = Math.hypot((e.x+16)-center.x, (e.y+16)-center.y);
-            if (d < hitRange) {
-                e.takeDamage(this.stats.dmg);
-                // Knockback
-                e.x += (e.x - this.x) * 2;
-                e.y += (e.y - this.y) * 2;
-            }
-        });
+        if (weaponType === 'bow') {
+            const angle = Math.atan2(Input.mouse.y - (this.y - Game.cam.y), Input.mouse.x - (this.x - Game.cam.x));
+            Game.projectiles.push(new Projectile(center.x, center.y, angle, this.stats.dmg, 'arrow', this));
+        } else {
+            // Melee attack
+            Game.entities.forEach(e => {
+                if (e instanceof Enemy) {
+                    const d = Math.hypot((e.x+16)-center.x, (e.y+16)-center.y);
+                    if (d < hitRange) {
+                        e.takeDamage(this.stats.dmg);
+                    }
+                }
+            });
+        }
     }
 
     useWhirlwind() {
@@ -759,9 +954,16 @@ class Player extends Entity {
         });
     }
 
-    takeDamage(amount) {
-        const reducedDmg = Math.max(1, amount - this.stats.def);
-        this.stats.hp -= reducedDmg;
+    useFireball() {
+        this.abilityCooldowns.fireball = 1.0; // 1 second cooldown
+        const center = { x: this.x + 16, y: this.y + 16 };
+        const angle = Math.atan2(Input.mouse.y - (this.y - Game.cam.y), Input.mouse.x - (this.x - Game.cam.x));
+        Game.projectiles.push(new Projectile(center.x, center.y, angle, this.stats.dmg * 1.2, 'fireball', this));
+    }
+
+    takeDamage(amount, isUnblockable = false) {
+        const reducedDmg = isUnblockable ? amount : Math.max(1, amount - this.stats.def);
+        this.baseStats.hp -= reducedDmg;
         Game.texts.push(new FloatingText(this.x, this.y, `-${reducedDmg}`, "red"));
         Game.shake = 10;
         AudioSys.play('hit');
@@ -788,8 +990,12 @@ class Player extends Entity {
             this.baseStats.xp -= requiredXp;
             this.baseStats.lvl++;
             this.baseStats.maxHp += 20;
-            this.stats.hp = this.baseStats.maxHp;
+            this.baseStats.hp = this.baseStats.maxHp;
             this.baseStats.dmg += 2;
+            this.baseStats.attackSpeed += 0.05;
+            this.baseStats.hpRegen += 0.2;
+            this.baseStats.maxMana += 5;
+            this.baseStats.skillPoints++;
             AudioSys.play('levelup');
             UI.notify("LEVEL UP! Stats Increased", "#gold");
             Game.particles.push(new Particle(this.x, this.y, '#fd0', 30));
@@ -807,8 +1013,8 @@ class Player extends Entity {
 class Enemy extends Entity {
     constructor(x, y, type) {
         super(x, y, type);
-        this.hp = { orc: 30, slime: 15, skeleton: 20, orc_king: 250 }[type];
-        this.speed = { orc: 60, slime: 40, skeleton: 50, orc_king: 40 }[type];
+        this.hp = { orc: 30, slime: 15, skeleton: 20, orc_king: 250, sand_golem: 80, ghost: 25 }[type];
+        this.speed = { orc: 60, slime: 40, skeleton: 50, orc_king: 40, sand_golem: 30, ghost: 70 }[type];
     }
     takeDamage(amount) {
         this.hp -= amount;
@@ -819,13 +1025,13 @@ class Enemy extends Entity {
 
         if (this.hp <= 0) {
             this.dead = true;
-            const xpGain = { orc: 15, slime: 5, skeleton: 10, orc_king: 200 }[this.type];
+            const xpGain = { orc: 15, slime: 5, skeleton: 10, orc_king: 200, sand_golem: 50, ghost: 20 }[this.type];
             Game.player.gainXp(xpGain);
 
             // Gold drop
             if (this.type !== 'slime') { // Slimes are poor
-                const goldDrop = this.type === 'orc_king' ? 100 + Math.floor(Math.random() * 50) : 1 + Math.floor(Math.random() * 5);
-                Game.player.stats.gold += goldDrop;
+                const goldDrop = this.type === 'orc_king' ? 100 + Math.floor(Math.random() * 50) : 5 + Math.floor(Math.random() * 5);
+                Game.player.baseStats.gold += goldDrop;
                 Game.texts.push(new FloatingText(this.x, this.y, `+${goldDrop} 🪙`, "gold"));
                 AudioSys.play('coin');
             }
@@ -844,6 +1050,15 @@ class Enemy extends Entity {
             }
             if (this.type === 'orc_king' || lootRoll < 0.05) {
                 Game.loot.push(new Loot(this.x, this.y, {id: 'sword', slot: 'weapon', power: 5}));
+            }
+            if (lootRoll < 0.02) { // Rare axe drop
+                Game.loot.push(new Loot(this.x, this.y, {id: 'battle_axe', slot: 'weapon', power: 12}));
+            }
+            if (lootRoll < 0.03) { // Rare bow drop
+                Game.loot.push(new Loot(this.x, this.y, {id: 'bow', slot: 'weapon', power: 7}));
+            }
+            if (lootRoll < 0.04) { // Rare armor drop
+                Game.loot.push(new Loot(this.x, this.y, {id: 'steel_armor', slot: 'armor', power: 5}));
             }
         }
     }
@@ -885,7 +1100,7 @@ class Enemy extends Entity {
                 AudioSys.play('sword'); // Arrow sound
             } else {
                 // Melee attack
-                const damage = { orc: 10, slime: 5, orc_king: 25 }[this.type];
+                const damage = { orc: 10, slime: 5, orc_king: 25, sand_golem: 15, ghost: 12 }[this.type];
                 p.takeDamage(damage);
             }
         }
@@ -923,25 +1138,29 @@ class Loot {
 }
 
 class Projectile extends Entity {
-    constructor(x, y, angle, damage) {
-        super(x, y, 'projectile_arrow');
+    constructor(x, y, angle, damage, type, owner) {
+        super(x, y, 'projectile_' + type);
         this.speed = 400;
         this.vx = Math.cos(angle) * this.speed;
         this.vy = Math.sin(angle) * this.speed;
         this.damage = damage;
         this.life = 3; // seconds
+        this.owner = owner;
     }
     update(dt) {
         this.x += this.vx * dt;
         this.y += this.vy * dt;
         this.life -= dt;
         if (this.life <= 0) this.dead = true;
+        if (World.isSolid(this.x, this.y)) this.dead = true;
 
         // Check collision with player
-        const p = Game.player;
-        if (Math.hypot(p.x+16 - this.x, p.y+16 - this.y) < 20) {
-            p.takeDamage(this.damage);
-            this.dead = true;
+        if (this.owner instanceof Enemy) {
+            const p = Game.player;
+            if (Math.hypot(p.x+16 - this.x, p.y+16 - this.y) < 20) {
+                p.takeDamage(this.damage);
+                this.dead = true;
+            }
         }
     }
     draw(ctx, camX, camY) {
@@ -1014,6 +1233,7 @@ const Input = {
             if (e.key === 'Escape') Game.togglePause();
             if (e.key === 'i' || e.key === 'I') UI.toggleInventory(); // Q is now an ability
             if (e.key === 'e' || e.key === 'E') Game.interact();
+            if (e.key === 'k' || e.key === 'K') UI.toggleSkillTree();
         });
         window.addEventListener('keyup', e => this.keys[e.key] = false);
     }
@@ -1025,11 +1245,46 @@ const Quests = {
         title: "The Slime Menace",
         npc: 'Wizard',
         description: "The nearby plains are overrun with slimes! Please, adventurer, could you defeat 10 of them to make the area safer?",
-        target: 'slime',
+        target: 'slime', // The enemy type to kill
         needed: 10,
-        reward: { xp: 100, gold: 50 },
+        reward: { 
+            xp: 150, 
+            gold: 75,
+            item: { id: 'sword', slot: 'weapon', power: 8, name: "Wizard's Blade" } // Special reward
+        },
         completionText: "Amazing! You've thinned their numbers. Please, take this for your troubles."
+    },
+    orcMaterials: {
+        id: 'orcMaterials',
+        title: "A Merchant's Plea",
+        npc: 'Merchant',
+        description: "Those pesky orcs keep stealing my supplies! If you could recover 5... 'orc tusks' for me, I'll make it worth your while.",
+        target: 'orc', needed: 5,
+        reward: { xp: 100, gold: 150 },
+        completionText: "Ah, splendid! These will teach them a lesson. Here is your payment."
+    },
+    golemProblem: {
+        id: 'golemProblem',
+        title: "The Golem Problem",
+        npc: 'Guard Captain',
+        description: "The desert paths are blocked by enchanted Sand Golems. It's too dangerous for the caravans. Can you destroy 3 of them?",
+        target: 'sand_golem', needed: 3,
+        reward: { xp: 250, gold: 200 },
+        completionText: "Excellent work, soldier. The trade routes are safer thanks to you."
+    },
+    ancientKnowledge: {
+        id: 'ancientKnowledge',
+        title: "Ancient Knowledge",
+        npc: 'Old Man',
+        description: "The Orc King... I've heard he carries an ancient tablet. If you ever defeat him, would you bring it to me? I must study it.",
+        target: 'orc_king', needed: 1,
+        reward: { xp: 500, gold: 100 },
+        completionText: "Incredible! The legends were true. Thank you, hero. This knowledge is priceless."
     }
+};
+
+const Items = {
+    // ... will be populated later
 };
 
 
@@ -1041,6 +1296,7 @@ const Game = {
     shake: 0,
     state: 'MENU', // MENU, PLAY, PAUSE
     cam: {x:0, y:0},
+    spawnPoint: {x:0, y:0},
     dayTime: 0, // 0 to 1
 
     init() {
@@ -1110,17 +1366,21 @@ const Game = {
             if (foundSpot) break;
         }
 
+        this.spawnPoint = {x: spawnX, y: spawnY};
+
         this.player = new Player(spawnX, spawnY);
         this.player.inventory.push({id: 'potion', count: 3});
         
         // Spawn Mobs around the player's actual spawn point
-        const enemyTypes = ['orc', 'slime', 'skeleton'];
+        const startingEnemyTypes = ['slime'];
+        const outerEnemyTypes = ['orc', 'slime', 'skeleton', 'sand_golem'];
         this.entities = [];
-        for(let i=0; i<50; i++) {
-            const ex = spawnX + (Math.random()-0.5)*2000;
-            const ey = spawnY + (Math.random()-0.5)*2000;
-            if(!World.isSolid(ex, ey)) {
-                const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+        for(let i=0; i<200; i++) { // More enemies for bigger map
+            const ex = spawnX + (Math.random()-0.5)*4000;
+            const ey = spawnY + (Math.random()-0.5)*4000;
+            if(!World.isSolid(ex, ey) && Math.hypot(ex - spawnX, ey - spawnY) > 600) { // No enemies in starting town
+                const distFromSpawn = Math.hypot(ex - spawnX, ey - spawnY);
+                const type = distFromSpawn < 800 ? startingEnemyTypes[Math.floor(Math.random() * startingEnemyTypes.length)] : outerEnemyTypes[Math.floor(Math.random() * outerEnemyTypes.length)];
                 this.entities.push(new Enemy(ex, ey, type));
             }
         }
@@ -1135,15 +1395,33 @@ const Game = {
             return {x, y}; // Fallback
         }
 
-        // Spawn NPCs near player at safe locations
+        // Spawn NPCs in the city
         const wizPos = findSafeSpot(spawnX + 64, spawnY);
         const wizard = new NPC(wizPos.x, wizPos.y, 'npc_wizard', 'Wizard');
-        wizard.interaction = () => UI.showDialogue(wizard, Quests.slimeMenace);
+        wizard.interaction = () => UI.showDialogue(wizard);
         this.entities.push(wizard);
+
         const merchPos = findSafeSpot(spawnX - 64, spawnY);
         const merchant = new NPC(merchPos.x, merchPos.y, 'npc_merchant', 'Merchant');
         merchant.interaction = () => UI.showShop(merchant);
         this.entities.push(merchant);
+
+        const guardPos = findSafeSpot(spawnX, spawnY - 80);
+        const guard = new NPC(guardPos.x, guardPos.y, 'npc_guard', 'Guard Captain');
+        guard.interaction = () => UI.showDialogue(guard);
+        this.entities.push(guard);
+
+        const oldManPos = findSafeSpot(spawnX + 128, spawnY + 50);
+        const oldMan = new NPC(oldManPos.x, oldManPos.y, 'npc_old_man', 'Old Man');
+        oldMan.interaction = () => UI.showDialogue(oldMan);
+        this.entities.push(oldMan);
+        this.entities.push(merchant);
+
+        // Add a blacksmith
+        const blacksmithPos = findSafeSpot(spawnX - 100, spawnY - 50);
+        const blacksmith = new NPC(blacksmithPos.x, blacksmithPos.y, 'npc_blacksmith', 'Blacksmith');
+        blacksmith.interaction = () => UI.showDialogue(blacksmith);
+        this.entities.push(blacksmith);
         
         UI.notify("World Generated!", "#4f4");
     },
@@ -1177,8 +1455,8 @@ const Game = {
         if (!picked) {
             // Maybe use potion?
             const potIndex = this.player.inventory.findIndex(i => i.id === 'potion');
-            if (potIndex > -1 && this.player.stats.hp < this.player.stats.maxHp) {
-                this.player.stats.hp = Math.min(this.player.stats.maxHp, this.player.stats.hp + 50);
+            if (potIndex > -1 && this.player.baseStats.hp < this.player.stats.maxHp) {
+                this.player.baseStats.hp = Math.min(this.player.stats.maxHp, this.player.baseStats.hp + 50);
                 
                 // Handle stacked vs unstacked potions
                 const pot = this.player.inventory[potIndex];
@@ -1247,10 +1525,14 @@ const Game = {
         }
         
         // Check Game Over
-        if (this.player.stats.hp <= 0) {
-            alert("YOU DIED. Level: " + this.player.stats.lvl);
-            this.clearSave();
-            location.reload();
+        if (this.player.baseStats.hp <= 0) {
+            UI.notify("You have fallen...", "red");
+            this.player.baseStats.hp = this.player.stats.maxHp / 2; // Respawn with 50% health
+            this.player.baseStats.gold = Math.floor(this.player.baseStats.gold * 0.8); // Lose 20% gold
+            UI.notify("You lost some gold.", "orange");
+            // Teleport to spawn
+            this.player.x = Game.spawnPoint.x;
+            this.player.y = Game.spawnPoint.y;
         }
     },
 
@@ -1265,6 +1547,14 @@ const Game = {
 
         this.ctx.save();
         this.ctx.translate(-this.cam.x + sx, -this.cam.y + sy);
+
+        // Draw Player House
+        const houseSprite = Assets.cache['building_house'];
+        this.ctx.drawImage(houseSprite, this.spawnPoint.x - houseSprite.width/2, this.spawnPoint.y - houseSprite.height/2);
+
+        // Draw Library
+        const librarySprite = Assets.cache['building_library'];
+        this.ctx.drawImage(librarySprite, this.spawnPoint.x + 128 - librarySprite.width/2, this.spawnPoint.y + 50 - librarySprite.height/2);
 
         // 1. Draw Tiles (Optimized Culling)
         const startCol = Math.floor(this.cam.x / World.tileSize);
@@ -1394,7 +1684,7 @@ const UI = {
     update() {
         // HUD
         const p = Game.player;
-        document.getElementById('hp-val').innerText = `${Math.ceil(p.stats.hp)}/${p.stats.maxHp}`;
+        document.getElementById('hp-val').innerText = `${Math.ceil(p.baseStats.hp)}/${p.stats.maxHp}`;
         document.getElementById('hp-bar').style.width = `${(p.stats.hp/p.stats.maxHp)*100}%`;
         document.getElementById('xp-bar').style.width = `${(p.baseStats.xp/(p.baseStats.lvl*100))*100}%`;
         document.getElementById('lvl-val').innerText = p.baseStats.lvl;
@@ -1429,6 +1719,8 @@ const UI = {
             document.getElementById('stats-dmg').innerText = Game.player.stats.dmg;
             document.getElementById('stats-def').innerText = Game.player.stats.def;
             document.getElementById('stats-spd').innerText = Game.player.speed;
+            document.getElementById('stats-regen').innerText = Game.player.stats.hpRegen.toFixed(1) + '/s';
+            document.getElementById('stats-regen').innerText = Game.player.stats.hpRegen.toFixed(1) + '/s';
             
             const grid = document.getElementById('inv-grid');
             grid.innerHTML = '';
@@ -1503,12 +1795,33 @@ const UI = {
         document.getElementById('quest-tracker').classList.add('hidden');
     },
 
-    showDialogue(npc, quest) {
+    showDialogue(npc) {
         const p = Game.player;
         const screen = document.getElementById('dialogue-screen');
         screen.classList.remove('hidden');
         document.getElementById('dialogue-title').innerText = npc.name;
         const textEl = document.getElementById('dialogue-text');
+
+        // Determine which quest this NPC gives
+        let quest;
+        if (npc.name === 'Wizard') {
+            quest = Quests.slimeMenace;
+        } else if (npc.name === 'Merchant') {
+            quest = Quests.orcMaterials;
+        } else if (npc.name === 'Guard Captain') {
+            quest = Quests.golemProblem;
+        } else if (npc.name === 'Old Man') {
+            quest = Quests.ancientKnowledge;
+        } else if (npc.name === 'Blacksmith') {
+            // The blacksmith can have multiple quests or crafting dialogues
+            // For now, let's just give him one.
+            textEl.innerText = "Need some fine steel? Bring me the materials, I'll forge it.";
+            optionsEl.innerHTML = `<button onclick="UI.closeDialogue()">I'll see what I can find.</button>`;
+            return;
+        } else {
+            textEl.innerText = "Greetings, traveler."; optionsEl.innerHTML = `<button onclick="UI.closeDialogue()">Goodbye</button>`; return;
+        }
+
         const optionsEl = document.getElementById('dialogue-options');
         optionsEl.innerHTML = '';
 
@@ -1518,7 +1831,11 @@ const UI = {
         if (activeQuest && activeQuest.id === quest.id && activeQuest.progress >= activeQuest.needed) {
             textEl.innerText = quest.completionText;
             p.gainXp(quest.reward.xp);
-            p.stats.gold += quest.reward.gold;
+            p.baseStats.gold += quest.reward.gold;
+            if (quest.reward.item) {
+                p.inventory.push(quest.reward.item);
+                this.notify(`Received ${quest.reward.item.name}!`, 'lime');
+            }
             this.notify(`+${quest.reward.xp} XP, +${quest.reward.gold} Gold`, 'gold');
             p.activeQuest = null;
             this.hideQuest();
@@ -1541,7 +1858,7 @@ const UI = {
         else {
             textEl.innerText = quest.description;
             optionsEl.innerHTML = `
-                <button onclick="Game.player.acceptQuest(Quests.slimeMenace); UI.closeDialogue();">Accept Quest</button>
+                <button onclick="Game.player.acceptQuest(Quests['${quest.id}']); UI.closeDialogue();">Accept Quest</button>
                 <button onclick="UI.closeDialogue()">Decline</button>
             `;
         }
@@ -1551,17 +1868,57 @@ const UI = {
         document.getElementById('dialogue-screen').classList.add('hidden');
     },
 
-    showShop(npc) {
+    showShop() {
         const shopItems = [
             { item: { id: 'potion', count: 1 }, cost: 25 },
             { item: { id: 'sword', slot: 'weapon', power: 5 }, cost: 100 },
-            { item: { id: 'armor', slot: 'armor', power: 2 }, cost: 150 },
+            { item: { id: 'bow', slot: 'weapon', power: 7 }, cost: 175 },
+            { item: { id: 'battle_axe', slot: 'weapon', power: 12 }, cost: 250 },
+            { item: { id: 'armor', slot: 'armor', power: 2, name: 'Leather Armor' }, cost: 150 },
+            { item: { id: 'steel_armor', slot: 'armor', power: 5, name: 'Steel Armor' }, cost: 300 },
         ];
 
         const screen = document.getElementById('shop-screen');
         screen.classList.remove('hidden');
         const grid = document.getElementById('shop-grid');
         grid.innerHTML = '';
+
+        // Add Sell functionality
+        const sellGrid = document.createElement('div');
+        sellGrid.className = 'inventory-grid';
+        sellGrid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(64px, 1fr))';
+        
+        const sellHeader = document.createElement('h2');
+        sellHeader.innerText = "Your Items (Click to Sell)";
+        sellHeader.style.width = '100%';
+        sellHeader.style.textAlign = 'left';
+
+        const shopContainer = document.createElement('div');
+        shopContainer.className = 'shop-container'; // Add a class to find and remove it later
+        shopContainer.style.display = 'flex';
+        shopContainer.style.gap = '40px';
+
+        const buyContainer = document.createElement('div');
+        buyContainer.style.width = '500px';
+        const sellContainer = document.createElement('div');
+        sellContainer.style.width = '300px';
+
+        // Populate Sell Grid
+        Game.player.inventory.forEach((item, index) => {
+            const slot = document.createElement('div');
+            slot.className = 'inv-slot';
+            const img = new Image();
+            img.src = Assets.cache['item_' + item.id].toDataURL();
+            slot.appendChild(img);
+            slot.onclick = () => {
+                const sellPrice = Math.floor((item.power || 5) * 5); // Simple price logic
+                Game.player.baseStats.gold += sellPrice;
+                Game.player.inventory.splice(index, 1);
+                this.notify(`Sold ${item.id} for ${sellPrice} gold`, 'gold');
+                this.closeShop(); setTimeout(() => this.showShop(), 50); // Refresh shop
+            };
+            sellGrid.appendChild(slot);
+        });
 
         shopItems.forEach(shopItem => {
             const slot = document.createElement('div');
@@ -1581,8 +1938,8 @@ const UI = {
             slot.appendChild(info);
 
             slot.onclick = () => {
-                if (Game.player.stats.gold >= shopItem.cost) {
-                    Game.player.stats.gold -= shopItem.cost;
+                if (Game.player.baseStats.gold >= shopItem.cost) {
+                    Game.player.baseStats.gold -= shopItem.cost;
                     Game.player.inventory.push({...shopItem.item});
                     AudioSys.play('coin');
                     this.notify(`Purchased ${shopItem.item.id}!`, 'lime');
@@ -1593,9 +1950,20 @@ const UI = {
 
             grid.appendChild(slot);
         });
+
+        buyContainer.appendChild(grid);
+        sellContainer.appendChild(sellHeader);
+        sellContainer.appendChild(sellGrid);
+
+        shopContainer.appendChild(buyContainer);
+        shopContainer.appendChild(sellContainer);
+        screen.querySelector('.window').insertBefore(shopContainer, screen.querySelector('button'));
     },
 
     closeShop() {
+        const screen = document.getElementById('shop-screen');
+        const oldContainer = screen.querySelector('.shop-container');
+        if(oldContainer) oldContainer.remove();
         document.getElementById('shop-screen').classList.add('hidden');
     },
 
@@ -1604,6 +1972,11 @@ const UI = {
             this.minimapCanvas = document.getElementById('minimap');
             this.mCtx = this.minimapCanvas.getContext('2d');
         }
+    },
+
+    toggleSkillTree() {
+        const el = document.getElementById('skill-tree-screen');
+        el.classList.toggle('hidden');
     },
 
     drawMinimap() {
