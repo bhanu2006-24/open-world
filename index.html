@@ -14,6 +14,7 @@
             --health: #e74c3c;
             --mana: #3498db;
             --xp: #9b59b6;
+            --stamina: #f1c40f;
         }
 
         body {
@@ -191,6 +192,31 @@
             padding: 2px 6px; border-radius: 4px; color: white;
         }
     </style>
+    <style>
+        .ability-slot {
+            width: 50px; height: 50px; background: #222; border: 2px solid #444;
+            border-radius: 5px; position: relative;
+            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAAXNSR0IArs4c6QAAAPFJREFUWEftltENgCAQBPf/d5sYQoJg002YgXj2x4JvX4CQT0iJgG+2G2gJgG/aD7QCwPftB1oC4Pv2A60A8H37gVYA+L79QCuA+C8E4AVQf0xAdwVUwBdg8gK0gL4A0gJ4AmgJgCegJQCegJYAeAJqCWAnoCYAnYCaAHQCasJ1AOtS4sYVYB2gugA8gO4AqgK4A6gK4A6gKgA8gOoA8ACqA8ADqA4AD6A6ADyA6gDwAKoDwANdC+DeA+sU4N4D6xTg3gPrFODeA+sU4N4D6xTg3gPrFPBfA/gA/gAUeHkY2wAAAABJRU5ErkJggg==');
+            background-size: 32px 32px; background-position: center; background-repeat: no-repeat;
+        }
+        .cooldown-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            transform-origin: bottom;
+            transform: scaleY(1);
+            transition: transform 0.1s linear;
+        }
+        .ability-key {
+            position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);
+            font-size: 16px; color: #ccc;
+        }
+    </style>
+    <!-- Add a specific style for equipped items -->
+    <style>
+        .inv-slot.equipped {
+            border-color: #4caf50; /* Green border for equipped */
+        }
+    </style>
 </head>
 <body>
 
@@ -210,6 +236,11 @@
             <div class="currency">
                 <span>🪙</span> <span id="gold-val">0</span>
             </div>
+            <!-- Quest Tracker -->
+            <div id="quest-tracker" class="hidden" style="margin-left: 20px; font-size: 18px;">
+                <div id="quest-title" style="color: var(--accent);"></div>
+                <div id="quest-progress"></div>
+            </div>
         </div>
 
         <!-- Top Right Minimap -->
@@ -227,6 +258,14 @@
             <span class="key">E</span> Interact &nbsp; 
             <span class="key">I</span> Inventory &nbsp; 
             <span class="key">ESC</span> Menu
+        </div>
+
+        <!-- Ability Cooldowns -->
+        <div id="ability-bar" style="position: absolute; bottom: 80px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px;">
+            <div class="ability-slot">
+                <div id="whirlwind-cooldown" class="cooldown-overlay"></div>
+                <div class="ability-key">Q</div>
+            </div>
         </div>
     </div>
 
@@ -252,10 +291,12 @@
             <h1>INVENTORY</h1>
             <div style="display:flex; justify-content: space-around; text-align: left;">
                 <div>
-                    <h2>Stats</h2>
-                    <p>⚔️ Damage: <span id="stats-dmg">10</span></p>
+                    <h2>Equipment</h2>
+                    <div id="equip-grid" class="inventory-grid" style="grid-template-columns: repeat(2, 64px); max-height: 150px;"></div>
+                    <h2 style="margin-top: 20px;">Stats</h2>
+                    <p>⚔️ Damage: <span id="stats-dmg">0</span></p>
                     <p>🛡️ Armor: <span id="stats-def">0</span></p>
-                    <p>⚡ Speed: <span id="stats-spd">100</span></p>
+                    <p>⚡ Speed: <span id="stats-spd">0</span></p>
                 </div>
                 <div style="width: 400px;">
                     <h2>Bag</h2>
@@ -263,6 +304,28 @@
                 </div>
             </div>
             <button onclick="UI.toggleInventory()">CLOSE</button>
+        </div>
+    </div>
+
+    <!-- Dialogue/Quest Screen -->
+    <div id="dialogue-screen" class="modal hidden">
+        <div class="window" style="width: 600px; text-align: left;">
+            <h2 id="dialogue-title" style="margin-top: 0;">NPC Name</h2>
+            <p id="dialogue-text" style="font-size: 22px; min-height: 100px;"></p>
+            <div id="dialogue-options" style="text-align: center;">
+                <!-- Options will be added here by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Shop Screen -->
+    <div id="shop-screen" class="modal hidden">
+        <div class="window">
+            <h1>MERCHANT'S WARES</h1>
+            <div id="shop-grid" class="inventory-grid" style="grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));">
+                <!-- Shop items will be added here by JS -->
+            </div>
+            <button onclick="UI.closeShop()">LEAVE</button>
         </div>
     </div>
 </div>
@@ -298,17 +361,12 @@ const Assets = {
             ctx.fillStyle = '#fec'; 
             ctx.fillRect(10, 4, 12, 10);
             // Eyes
-            ctx.fillStyle = '#000';
+            ctx.fillStyle = '#000'; 
             ctx.fillRect(18, 7, 2, 2);
             // Helmet/Hair
             ctx.fillStyle = '#d4af37';
             ctx.fillRect(10, 2, 12, 4);
             ctx.fillRect(8, 4, 2, 8);
-            // Sword
-            ctx.fillStyle = '#aaa';
-            ctx.fillRect(24, 10, 4, 16);
-            ctx.fillStyle = '#852';
-            ctx.fillRect(23, 24, 6, 2);
         });
 
         // ENEMY: ORC
@@ -380,6 +438,76 @@ const Assets = {
             ctx.fillStyle = '#fff'; ctx.fillRect(12, 8, 8, 20); // Bottle
             ctx.fillStyle = '#f00'; ctx.fillRect(14, 12, 4, 14); // Liquid
             ctx.fillStyle = '#852'; ctx.fillRect(12, 6, 8, 2); // Cork
+        });
+
+        this.createSprite('item_sword', 32, 32, (ctx) => {
+            ctx.fillStyle = '#aaa'; ctx.fillRect(14, 4, 4, 24); // Blade
+            ctx.fillStyle = '#852'; ctx.fillRect(12, 24, 8, 4); // Hilt
+        });
+
+        this.createSprite('item_armor', 32, 32, (ctx) => {
+            ctx.fillStyle = '#8d6e63'; ctx.fillRect(8, 6, 16, 20); // Body
+            ctx.fillStyle = '#a1887f'; ctx.fillRect(10, 6, 12, 4); // Neckline
+        });
+
+        // NPCS
+        this.createSprite('npc_wizard', 32, 32, (ctx) => {
+            // Robe
+            ctx.fillStyle = '#3f51b5';
+            ctx.fillRect(8, 12, 16, 20);
+            // Face
+            ctx.fillStyle = '#fec';
+            ctx.fillRect(12, 8, 8, 8);
+            // Beard
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(10, 14, 12, 8);
+            // Hat
+            ctx.fillStyle = '#3f51b5';
+            ctx.beginPath();
+            ctx.moveTo(16, 0); ctx.lineTo(26, 12); ctx.lineTo(6, 12);
+            ctx.fill();
+        });
+
+        this.createSprite('npc_merchant', 32, 32, (ctx) => {
+            // Tunic
+            ctx.fillStyle = '#e65100';
+            ctx.fillRect(8, 14, 16, 18);
+            // Apron
+            ctx.fillStyle = '#d2b48c';
+            ctx.fillRect(10, 16, 12, 14);
+            // Face
+            ctx.fillStyle = '#fec';
+            ctx.fillRect(10, 6, 12, 10);
+            // Hair
+            ctx.fillStyle = '#5d4037';
+            ctx.fillRect(10, 4, 12, 4);
+        });
+
+        // ENEMY: SKELETON
+        this.createSprite('skeleton', 32, 32, (ctx) => {
+            ctx.fillStyle = '#e0e0e0'; // Bone color
+            ctx.fillRect(14, 4, 4, 24); // Spine
+            ctx.fillRect(10, 6, 12, 4); // Ribs
+            ctx.fillRect(10, 12, 12, 4); // Ribs
+            ctx.beginPath(); ctx.arc(16, 6, 5, 0, Math.PI*2); ctx.fill(); // Skull
+            ctx.fillStyle = '#000'; ctx.fillRect(14, 5, 2, 2); ctx.fillRect(18, 5, 2, 2); // Eyes
+        });
+
+        // ENEMY: ORC KING
+        this.createSprite('orc_king', 48, 48, (ctx) => {
+            ctx.fillStyle = '#3a6'; // Darker Green skin
+            ctx.fillRect(12, 9, 24, 30);
+            ctx.fillStyle = '#d4af37'; // Gold crown
+            ctx.fillRect(12, 6, 24, 6);
+            ctx.fillRect(14, 2, 4, 4); ctx.fillRect(22, 2, 4, 4); ctx.fillRect(30, 2, 4, 4);
+            ctx.fillStyle = '#111'; // Eyes
+            ctx.fillRect(18, 15, 4, 4); ctx.fillRect(28, 15, 4, 4);
+        });
+
+        // PROJECTILE: ARROW
+        this.createSprite('projectile_arrow', 16, 16, (ctx) => {
+            ctx.fillStyle = '#852'; ctx.fillRect(0, 7, 14, 2); // Shaft
+            ctx.fillStyle = '#aaa'; ctx.fillRect(12, 6, 4, 4); // Head
         });
     }
 };
@@ -531,10 +659,18 @@ class Entity {
 class Player extends Entity {
     constructor(x, y) {
         super(x, y, 'player_idle');
-        this.stats = { hp: 100, maxHp: 100, dmg: 10, xp: 0, lvl: 1, gold: 0 };
+        this.baseStats = { hp: 100, maxHp: 100, dmg: 5, def: 0, xp: 0, lvl: 1, gold: 0 };
+        this.stats = {...this.baseStats};
         this.inventory = [];
+        this.equipment = { weapon: null, armor: null };
         this.cooldown = 0;
         this.speed = 180; // px per sec
+        this.abilityCooldowns = { whirlwind: 0 };
+        this.activeQuest = null;
+    }
+    draw(ctx, camX, camY) {
+        super.draw(ctx, camX, camY);
+        this.drawEquipment(ctx, camX, camY);
     }
     update(dt) {
         this.vx = 0; this.vy = 0;
@@ -547,6 +683,8 @@ class Player extends Entity {
         if (World.isSolid(this.x + this.vx + 16, this.y + 16)) this.vx = 0;
         if (World.isSolid(this.x + 16, this.y + this.vy + 16)) this.vy = 0;
 
+        this.recalculateStats();
+
         super.update(dt);
 
         // Attack
@@ -554,9 +692,33 @@ class Player extends Entity {
             this.attack();
             this.cooldown = 0.4; // seconds
         }
+        if (Input.keys['q'] && this.abilityCooldowns.whirlwind <= 0) {
+            this.useWhirlwind();
+        }
+
+        // Cooldowns
+        if (this.abilityCooldowns.whirlwind > 0) this.abilityCooldowns.whirlwind -= dt;
+
         if (this.cooldown > 0) this.cooldown -= dt;
     }
-    
+
+    drawEquipment(ctx, camX, camY) {
+        // Draw Sword
+        const swordColor = this.equipment.weapon ? '#aaa' : '#852'; // Steel vs Wood
+        ctx.fillStyle = swordColor;
+        ctx.fillRect(this.x - camX + 24, this.y - camY + 10, 4, 16);
+        ctx.fillStyle = '#852'; // Hilt
+        ctx.fillRect(this.x - camX + 23, this.y - camY + 24, 6, 2);
+    }
+
+    recalculateStats() {
+        this.stats = {...this.baseStats}; // Reset to base
+        if (this.equipment.weapon) this.stats.dmg += this.equipment.weapon.power;
+        if (this.equipment.armor) this.stats.def += this.equipment.armor.power;
+        this.stats.hp = this.baseStats.hp; // HP should not be recalculated this way
+        this.stats.maxHp = this.baseStats.maxHp;
+    }
+
     attack() {
         AudioSys.play('sword');
         Game.shake = 5;
@@ -578,26 +740,75 @@ class Player extends Entity {
         });
     }
 
+    useWhirlwind() {
+        this.abilityCooldowns.whirlwind = 5; // 5 second cooldown
+        AudioSys.play('sword');
+        Game.shake = 8;
+
+        // Big particle effect
+        for(let i=0; i<360; i+=20) {
+            const angle = i * Math.PI / 180;
+            Game.particles.push(new Particle(this.x+16, this.y+16, '#fff', 2, {vx: Math.cos(angle)*150, vy: Math.sin(angle)*150}));
+        }
+
+        // Damage all nearby enemies
+        Game.entities.forEach(e => {
+            if (e instanceof Enemy && Math.hypot(e.x - this.x, e.y - this.y) < 100) {
+                e.takeDamage(this.stats.dmg * 1.5); // Whirlwind does 150% damage
+            }
+        });
+    }
+
+    takeDamage(amount) {
+        const reducedDmg = Math.max(1, amount - this.stats.def);
+        this.stats.hp -= reducedDmg;
+        Game.texts.push(new FloatingText(this.x, this.y, `-${reducedDmg}`, "red"));
+        Game.shake = 10;
+        AudioSys.play('hit');
+    }
+
+    equip(item) {
+        if (!item.slot) return;
+        // Unequip old item
+        if (this.equipment[item.slot]) {
+            this.inventory.push(this.equipment[item.slot]);
+        }
+        // Equip new one
+        this.equipment[item.slot] = item;
+        this.inventory = this.inventory.filter(i => i !== item);
+        this.recalculateStats();
+        UI.toggleInventory(); // Refresh UI
+        setTimeout(() => UI.toggleInventory(), 50);
+    }
+
     gainXp(amount) {
-        this.stats.xp += amount;
-        if (this.stats.xp >= this.stats.lvl * 100) {
-            this.stats.xp = 0;
-            this.stats.lvl++;
-            this.stats.maxHp += 20;
-            this.stats.hp = this.stats.maxHp;
-            this.stats.dmg += 5;
+        this.baseStats.xp += amount;
+        const requiredXp = this.baseStats.lvl * 100;
+        if (this.baseStats.xp >= requiredXp) {
+            this.baseStats.xp -= requiredXp;
+            this.baseStats.lvl++;
+            this.baseStats.maxHp += 20;
+            this.stats.hp = this.baseStats.maxHp;
+            this.baseStats.dmg += 2;
             AudioSys.play('levelup');
             UI.notify("LEVEL UP! Stats Increased", "#gold");
             Game.particles.push(new Particle(this.x, this.y, '#fd0', 30));
         }
+        this.recalculateStats();
+    }
+
+    acceptQuest(quest) {
+        this.activeQuest = quest;
+        this.activeQuest.progress = 0;
+        UI.showQuest(quest);
     }
 }
 
 class Enemy extends Entity {
     constructor(x, y, type) {
         super(x, y, type);
-        this.hp = type === 'orc' ? 30 : 15;
-        this.speed = type === 'orc' ? 60 : 40;
+        this.hp = { orc: 30, slime: 15, skeleton: 20, orc_king: 250 }[type];
+        this.speed = { orc: 60, slime: 40, skeleton: 50, orc_king: 40 }[type];
     }
     takeDamage(amount) {
         this.hp -= amount;
@@ -608,37 +819,98 @@ class Enemy extends Entity {
 
         if (this.hp <= 0) {
             this.dead = true;
-            Game.player.gainXp(10);
-            if (Math.random() < 0.3) Game.loot.push(new Loot(this.x, this.y));
+            const xpGain = { orc: 15, slime: 5, skeleton: 10, orc_king: 200 }[this.type];
+            Game.player.gainXp(xpGain);
+
+            // Gold drop
+            if (this.type !== 'slime') { // Slimes are poor
+                const goldDrop = this.type === 'orc_king' ? 100 + Math.floor(Math.random() * 50) : 1 + Math.floor(Math.random() * 5);
+                Game.player.stats.gold += goldDrop;
+                Game.texts.push(new FloatingText(this.x, this.y, `+${goldDrop} 🪙`, "gold"));
+                AudioSys.play('coin');
+            }
+            
+            // Quest progress
+            const q = Game.player.activeQuest;
+            if (q && q.target === this.type && q.progress < q.needed) {
+                q.progress++;
+                UI.updateQuest();
+            }
+
+            // Loot drop
+            const lootRoll = Math.random();
+            if (this.type === 'orc_king' || lootRoll < 0.2) {
+                Game.loot.push(new Loot(this.x, this.y, {id: 'potion', count: 1}));
+            }
+            if (this.type === 'orc_king' || lootRoll < 0.05) {
+                Game.loot.push(new Loot(this.x, this.y, {id: 'sword', slot: 'weapon', power: 5}));
+            }
         }
     }
+
+    getRect() {
+        // Make slime hitbox smaller
+        if (this.type === 'slime') {
+            return {x: this.x+8, y: this.y+16, w: this.w-16, h: this.h-16};
+        }
+        return super.getRect();
+    }
+
+    draw(ctx, camX, camY) {
+        super.draw(ctx, camX, camY);
+    }
+
     update(dt) {
         // AI: Chase Player
         const p = Game.player;
         const dist = Math.hypot(p.x - this.x, p.y - this.y);
         
-        if (dist < 200 && dist > 30) {
+        const chaseDist = this.type === 'skeleton' ? 300 : 200;
+        const attackDist = this.type === 'skeleton' ? 250 : 35;
+
+        if (dist < chaseDist && dist > attackDist) {
             const angle = Math.atan2(p.y - this.y, p.x - this.x);
             this.vx = Math.cos(angle) * this.speed * dt;
             this.vy = Math.sin(angle) * this.speed * dt;
         } else {
             this.vx = 0; this.vy = 0;
         }
-
-        // Attack Player
-        if (dist < 30 && Math.random() < 0.05) {
-            p.stats.hp -= 5;
-            Game.texts.push(new FloatingText(p.x, p.y, "-5", "red"));
-            Game.shake = 10;
-            AudioSys.play('hit');
+        
+        // Attack Logic
+        if (dist < attackDist && Math.random() < 0.05) {
+            if (this.type === 'skeleton') {
+                // Ranged attack
+                const angle = Math.atan2(p.y - this.y, p.x - this.x);
+                Game.projectiles.push(new Projectile(this.x+16, this.y+16, angle, 8));
+                AudioSys.play('sword'); // Arrow sound
+            } else {
+                // Melee attack
+                const damage = { orc: 10, slime: 5, orc_king: 25 }[this.type];
+                p.takeDamage(damage);
+            }
         }
+
         super.update(dt);
     }
 }
 
+class NPC extends Entity {
+    constructor(x, y, type, name) {
+        super(x, y, type);
+        this.name = name;
+        this.interaction = null; // Function to call on interact
+    }
+    update(dt) {
+        // NPCs don't move
+    }
+    draw(ctx, camX, camY) {
+        super.draw(ctx, camX, camY);
+    }
+}
+
 class Loot {
-    constructor(x, y) {
-        this.x = x; this.y = y;
+    constructor(x, y, item) {
+        this.x = x; this.y = y; this.item = item;
         this.w = 32; this.h = 32;
         this.bounce = 0;
     }
@@ -646,17 +918,51 @@ class Loot {
         this.bounce += 0.1;
         const offY = Math.sin(this.bounce) * 5;
         ctx.drawImage(Assets.cache['item_potion'], this.x - camX, this.y - camY + offY);
+        ctx.drawImage(Assets.cache['item_' + this.item.id], this.x - camX, this.y - camY + offY);
+    }
+}
+
+class Projectile extends Entity {
+    constructor(x, y, angle, damage) {
+        super(x, y, 'projectile_arrow');
+        this.speed = 400;
+        this.vx = Math.cos(angle) * this.speed;
+        this.vy = Math.sin(angle) * this.speed;
+        this.damage = damage;
+        this.life = 3; // seconds
+    }
+    update(dt) {
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.life -= dt;
+        if (this.life <= 0) this.dead = true;
+
+        // Check collision with player
+        const p = Game.player;
+        if (Math.hypot(p.x+16 - this.x, p.y+16 - this.y) < 20) {
+            p.takeDamage(this.damage);
+            this.dead = true;
+        }
+    }
+    draw(ctx, camX, camY) {
+        // Don't draw shadow
+        const sprite = Assets.cache[this.type];
+        ctx.save();
+        ctx.translate(this.x - camX, this.y - camY);
+        ctx.rotate(Math.atan2(this.vy, this.vx));
+        ctx.drawImage(sprite, -8, -8);
+        ctx.restore();
     }
 }
 
 class Particle {
-    constructor(x, y, color, count) {
+    constructor(x, y, color, count, vel={vx: (Math.random()-0.5)*100, vy: (Math.random()-0.5)*100}) {
         this.parts = [];
         for(let i=0; i<count; i++) {
             this.parts.push({
                 x: x, y: y, 
-                vx: (Math.random()-0.5)*100, 
-                vy: (Math.random()-0.5)*100,
+                vx: vel.vx * (0.8 + Math.random()*0.4), 
+                vy: vel.vy * (0.8 + Math.random()*0.4),
                 life: 1.0,
                 color: color
             });
@@ -706,17 +1012,31 @@ const Input = {
         window.addEventListener('keydown', e => {
             this.keys[e.key] = true;
             if (e.key === 'Escape') Game.togglePause();
-            if (e.key === 'i' || e.key === 'I') UI.toggleInventory();
+            if (e.key === 'i' || e.key === 'I') UI.toggleInventory(); // Q is now an ability
             if (e.key === 'e' || e.key === 'E') Game.interact();
         });
         window.addEventListener('keyup', e => this.keys[e.key] = false);
     }
 };
 
+const Quests = {
+    slimeMenace: {
+        id: 'slimeMenace',
+        title: "The Slime Menace",
+        npc: 'Wizard',
+        description: "The nearby plains are overrun with slimes! Please, adventurer, could you defeat 10 of them to make the area safer?",
+        target: 'slime',
+        needed: 10,
+        reward: { xp: 100, gold: 50 },
+        completionText: "Amazing! You've thinned their numbers. Please, take this for your troubles."
+    }
+};
+
+
 const Game = {
     canvas: null, ctx: null,
     player: null,
-    entities: [], loot: [], particles: [], texts: [],
+    entities: [], loot: [], particles: [], texts: [], projectiles: [],
     lastTime: 0,
     shake: 0,
     state: 'MENU', // MENU, PLAY, PAUSE
@@ -791,30 +1111,64 @@ const Game = {
         }
 
         this.player = new Player(spawnX, spawnY);
+        this.player.inventory.push({id: 'potion', count: 3});
         
         // Spawn Mobs around the player's actual spawn point
+        const enemyTypes = ['orc', 'slime', 'skeleton'];
         this.entities = [];
         for(let i=0; i<50; i++) {
             const ex = spawnX + (Math.random()-0.5)*2000;
             const ey = spawnY + (Math.random()-0.5)*2000;
             if(!World.isSolid(ex, ey)) {
-                this.entities.push(new Enemy(ex, ey, Math.random() > 0.5 ? 'orc' : 'slime'));
+                const type = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
+                this.entities.push(new Enemy(ex, ey, type));
             }
         }
+
+        // Helper to find a safe spot for NPCs
+        const findSafeSpot = (x, y) => {
+            for(let r=0; r<5; r++) { // Search in a 5-tile radius
+                const checkX = x + (Math.random()-0.5) * r * World.tileSize;
+                const checkY = y + (Math.random()-0.5) * r * World.tileSize;
+                if (!World.isSolid(checkX, checkY)) return {x: checkX, y: checkY};
+            }
+            return {x, y}; // Fallback
+        }
+
+        // Spawn NPCs near player at safe locations
+        const wizPos = findSafeSpot(spawnX + 64, spawnY);
+        const wizard = new NPC(wizPos.x, wizPos.y, 'npc_wizard', 'Wizard');
+        wizard.interaction = () => UI.showDialogue(wizard, Quests.slimeMenace);
+        this.entities.push(wizard);
+        const merchPos = findSafeSpot(spawnX - 64, spawnY);
+        const merchant = new NPC(merchPos.x, merchPos.y, 'npc_merchant', 'Merchant');
+        merchant.interaction = () => UI.showShop(merchant);
+        this.entities.push(merchant);
         
         UI.notify("World Generated!", "#4f4");
     },
 
     interact() {
+        // Check for NPCs first
+        let interacted = false;
+        this.entities.forEach(e => {
+            if (e instanceof NPC) {
+                const d = Math.hypot(this.player.x - e.x, this.player.y - e.y);
+                if (d < 50 && e.interaction) {
+                    e.interaction();
+                    interacted = true;
+                }
+            }
+        });
+        if (interacted) return;
+
         // Check for loot
         let picked = false;
         this.loot = this.loot.filter(l => {
             const d = Math.hypot(this.player.x - l.x, this.player.y - l.y);
             if (d < 40) {
-                this.player.inventory.push({id: 'potion', count: 1});
-                this.player.stats.gold += 10;
-                AudioSys.play('coin');
-                this.texts.push(new FloatingText(this.player.x, this.player.y, "+Potion", "gold"));
+                this.player.inventory.push(l.item);
+                this.texts.push(new FloatingText(this.player.x, this.player.y, `+${l.item.id}`, "gold"));
                 picked = true;
                 return false;
             }
@@ -822,12 +1176,17 @@ const Game = {
         });
         if (!picked) {
             // Maybe use potion?
-            const pots = this.player.inventory.find(i => i.id === 'potion');
-            if (pots && this.player.stats.hp < this.player.stats.maxHp) {
-                this.player.stats.hp += 50;
-                if(this.player.stats.hp > this.player.stats.maxHp) this.player.stats.hp = this.player.stats.maxHp;
-                // Remove one potion - logic simplified for array
-                this.player.inventory.pop(); 
+            const potIndex = this.player.inventory.findIndex(i => i.id === 'potion');
+            if (potIndex > -1 && this.player.stats.hp < this.player.stats.maxHp) {
+                this.player.stats.hp = Math.min(this.player.stats.maxHp, this.player.stats.hp + 50);
+                
+                // Handle stacked vs unstacked potions
+                const pot = this.player.inventory[potIndex];
+                pot.count--;
+                if (pot.count <= 0) {
+                    this.player.inventory.splice(potIndex, 1);
+                }
+
                 AudioSys.play('levelup'); // heal sound
                 this.texts.push(new FloatingText(this.player.x, this.player.y, "+50 HP", "green"));
             }
@@ -865,6 +1224,10 @@ const Game = {
         this.entities.forEach(e => e.update(dt));
         this.entities = this.entities.filter(e => !e.dead);
 
+        // Projectiles
+        this.projectiles.forEach(p => p.update(dt));
+        this.projectiles = this.projectiles.filter(p => !p.dead);
+
         // Particles & Text
         this.particles.forEach(p => p.update(dt));
         this.particles = this.particles.filter(p => !p.isDead());
@@ -878,7 +1241,8 @@ const Game = {
             const ex = this.player.x + Math.cos(angle) * dist;
             const ey = this.player.y + Math.sin(angle) * dist;
             if (!World.isSolid(ex, ey)) {
-                this.entities.push(new Enemy(ex, ey, Math.random() > 0.3 ? 'orc' : 'slime'));
+                const type = Math.random() > 0.3 ? 'orc' : (Math.random() > 0.5 ? 'slime' : 'skeleton');
+                this.entities.push(new Enemy(ex, ey, type));
             }
         }
         
@@ -939,13 +1303,26 @@ const Game = {
         this.loot.forEach(l => l.draw(this.ctx, 0, 0));
 
         // 4. Entities (Sort Player and Enemies by Y)
-        const renderList = [...this.entities, this.player];
+        const renderList = [...this.entities, this.player, ...this.projectiles];
         renderList.sort((a, b) => a.y - b.y);
         renderList.forEach(e => e.draw(this.ctx, 0, 0));
 
         // 5. Particles
         this.particles.forEach(p => p.draw(this.ctx, 0, 0));
         this.texts.forEach(t => t.draw(this.ctx, 0, 0));
+
+        // Draw Whirlwind cooldown on player
+        if (this.player.abilityCooldowns.whirlwind > 0) {
+            const p = this.player;
+            const radius = 100;
+            const progress = (5 - p.abilityCooldowns.whirlwind) / 5;
+            this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(p.x + 16, p.y + 16, radius, -Math.PI/2, -Math.PI/2 + progress * Math.PI * 2);
+            this.ctx.stroke();
+        }
+
 
         this.ctx.restore();
 
@@ -976,7 +1353,7 @@ const Game = {
 
     saveGame() {
         const data = {
-            player: this.player.stats,
+            player: this.player.baseStats,
             inv: this.player.inventory,
             pos: {x: this.player.x, y: this.player.y}
         };
@@ -987,7 +1364,7 @@ const Game = {
     loadGame(data) {
         this.newGame(); // Init world first to generate map
         
-        this.player.stats = data.player;
+        this.player.baseStats = data.player;
         this.player.inventory = data.inv;
         
         // Safety check: If loaded position is in water (due to bug), move to safe spot
@@ -999,6 +1376,7 @@ const Game = {
              this.player.y = data.pos.y;
         }
         
+        this.player.recalculateStats();
         UI.notify("Welcome Back!", "#gold");
     },
 
@@ -1016,11 +1394,20 @@ const UI = {
     update() {
         // HUD
         const p = Game.player;
-        document.getElementById('hp-val').innerText = `${Math.floor(p.stats.hp)}/${p.stats.maxHp}`;
+        document.getElementById('hp-val').innerText = `${Math.ceil(p.stats.hp)}/${p.stats.maxHp}`;
         document.getElementById('hp-bar').style.width = `${(p.stats.hp/p.stats.maxHp)*100}%`;
-        document.getElementById('xp-bar').style.width = `${(p.stats.xp/(p.stats.lvl*100))*100}%`;
-        document.getElementById('lvl-val').innerText = p.stats.lvl;
+        document.getElementById('xp-bar').style.width = `${(p.baseStats.xp/(p.baseStats.lvl*100))*100}%`;
+        document.getElementById('lvl-val').innerText = p.baseStats.lvl;
         document.getElementById('gold-val').innerText = p.stats.gold;
+
+        // Ability Cooldowns
+        const wwCooldown = p.abilityCooldowns.whirlwind || 0;
+        const wwMaxCooldown = 5;
+        const wwOverlay = document.getElementById('whirlwind-cooldown');
+        if (wwOverlay) {
+            const scaleY = Math.max(0, wwCooldown / wwMaxCooldown);
+            wwOverlay.style.transform = `scaleY(${scaleY})`;
+        }
     },
 
     notify(msg, color='#fff') {
@@ -1038,27 +1425,184 @@ const UI = {
         el.classList.toggle('hidden');
         if (!el.classList.contains('hidden')) {
             // Update inv UI
+            Game.player.recalculateStats();
             document.getElementById('stats-dmg').innerText = Game.player.stats.dmg;
+            document.getElementById('stats-def').innerText = Game.player.stats.def;
             document.getElementById('stats-spd').innerText = Game.player.speed;
             
             const grid = document.getElementById('inv-grid');
             grid.innerHTML = '';
-            Game.player.inventory.forEach(item => {
+            // Group stacked items
+            const groupedInv = Game.player.inventory.reduce((acc, item) => {
+                if (item.id === 'potion') {
+                    if (!acc['potion']) acc['potion'] = { ...item, count: 0 };
+                    acc['potion'].count++;
+                } else {
+                    acc[item.id + Math.random()] = item; // Unique key for unstackables
+                }
+                return acc;
+            }, {});
+
+            Object.values(groupedInv).forEach(item => {
                 const slot = document.createElement('div');
                 slot.className = 'inv-slot';
                 const img = new Image();
                 img.src = Assets.cache['item_' + item.id].toDataURL();
                 slot.appendChild(img);
                 
-                // Click to use
-                slot.onclick = () => {
-                    Game.interact(); // Trigger potion use logic
-                    this.toggleInventory(); // Close and refresh
-                    setTimeout(() => this.toggleInventory(), 50);
-                };
+                if (item.count > 1) {
+                    const countEl = document.createElement('div');
+                    countEl.className = 'inv-count';
+                    countEl.innerText = item.count;
+                    slot.appendChild(countEl);
+                }
+
+                if (item.slot) { // Is equippable
+                    slot.onclick = () => Game.player.equip(item);
+                } else { // Is consumable
+                    slot.onclick = () => {
+                        Game.interact(); // Trigger potion use logic
+                        this.toggleInventory(); // Close and refresh
+                        setTimeout(() => this.toggleInventory(), 50);
+                    };
+                }
 
                 grid.appendChild(slot);
             });
+
+            // Update equipment UI
+            const equipGrid = document.getElementById('equip-grid');
+            equipGrid.innerHTML = '';
+            ['weapon', 'armor'].forEach(slotType => {
+                const slot = document.createElement('div');
+                slot.className = 'inv-slot';
+                const equippedItem = Game.player.equipment[slotType];
+                if (equippedItem) {
+                    const img = new Image();
+                    img.src = Assets.cache['item_' + equippedItem.id].toDataURL();
+                    slot.appendChild(img);
+                }
+                equipGrid.appendChild(slot);
+            });
+        }
+    },
+
+    showQuest(quest) {
+        document.getElementById('quest-tracker').classList.remove('hidden');
+        document.getElementById('quest-title').innerText = quest.title;
+        this.updateQuest();
+    },
+
+    updateQuest() {
+        const q = Game.player.activeQuest;
+        if (!q) return;
+        document.getElementById('quest-progress').innerText = `${q.target}: ${q.progress} / ${q.needed}`;
+    },
+
+    hideQuest() {
+        document.getElementById('quest-tracker').classList.add('hidden');
+    },
+
+    showDialogue(npc, quest) {
+        const p = Game.player;
+        const screen = document.getElementById('dialogue-screen');
+        screen.classList.remove('hidden');
+        document.getElementById('dialogue-title').innerText = npc.name;
+        const textEl = document.getElementById('dialogue-text');
+        const optionsEl = document.getElementById('dialogue-options');
+        optionsEl.innerHTML = '';
+
+        const activeQuest = p.activeQuest;
+
+        // Check for quest turn-in
+        if (activeQuest && activeQuest.id === quest.id && activeQuest.progress >= activeQuest.needed) {
+            textEl.innerText = quest.completionText;
+            p.gainXp(quest.reward.xp);
+            p.stats.gold += quest.reward.gold;
+            this.notify(`+${quest.reward.xp} XP, +${quest.reward.gold} Gold`, 'gold');
+            p.activeQuest = null;
+            this.hideQuest();
+
+            // BOSS SPAWN!
+            if (quest.id === 'slimeMenace') {
+                const bossX = p.x + (Math.random() - 0.5) * 200;
+                const bossY = p.y - 200; // Spawn above
+                Game.entities.push(new Enemy(bossX, bossY, 'orc_king'));
+                this.notify("A fearsome Orc King has appeared nearby!", "red");
+            }
+            optionsEl.innerHTML = `<button onclick="UI.closeDialogue()">Goodbye</button>`;
+        } 
+        // Check if quest is active but not complete
+        else if (activeQuest && activeQuest.id === quest.id) {
+            textEl.innerText = "You're still working on my task. Come back when you're done!";
+            optionsEl.innerHTML = `<button onclick="UI.closeDialogue()">I'll be back</button>`;
+        }
+        // Offer quest
+        else {
+            textEl.innerText = quest.description;
+            optionsEl.innerHTML = `
+                <button onclick="Game.player.acceptQuest(Quests.slimeMenace); UI.closeDialogue();">Accept Quest</button>
+                <button onclick="UI.closeDialogue()">Decline</button>
+            `;
+        }
+    },
+
+    closeDialogue() {
+        document.getElementById('dialogue-screen').classList.add('hidden');
+    },
+
+    showShop(npc) {
+        const shopItems = [
+            { item: { id: 'potion', count: 1 }, cost: 25 },
+            { item: { id: 'sword', slot: 'weapon', power: 5 }, cost: 100 },
+            { item: { id: 'armor', slot: 'armor', power: 2 }, cost: 150 },
+        ];
+
+        const screen = document.getElementById('shop-screen');
+        screen.classList.remove('hidden');
+        const grid = document.getElementById('shop-grid');
+        grid.innerHTML = '';
+
+        shopItems.forEach(shopItem => {
+            const slot = document.createElement('div');
+            slot.className = 'inv-slot';
+            slot.style.width = '120px';
+            slot.style.height = '120px';
+            slot.style.flexDirection = 'column';
+            
+            const img = new Image();
+            img.src = Assets.cache['item_' + shopItem.item.id].toDataURL();
+            img.style.marginBottom = '10px';
+
+            const info = document.createElement('div');
+            info.innerText = `${shopItem.item.id}\n🪙 ${shopItem.cost}`;
+            
+            slot.appendChild(img);
+            slot.appendChild(info);
+
+            slot.onclick = () => {
+                if (Game.player.stats.gold >= shopItem.cost) {
+                    Game.player.stats.gold -= shopItem.cost;
+                    Game.player.inventory.push({...shopItem.item});
+                    AudioSys.play('coin');
+                    this.notify(`Purchased ${shopItem.item.id}!`, 'lime');
+                } else {
+                    this.notify("Not enough gold!", 'red');
+                }
+            };
+
+            grid.appendChild(slot);
+        });
+    },
+
+    closeShop() {
+        document.getElementById('shop-screen').classList.add('hidden');
+    },
+
+    drawMinimap() {
+        if(!this.minimapCanvas) {
+            this.minimapCanvas = document.getElementById('minimap');
+            this.mCtx = this.minimapCanvas.getContext('2d');
         }
     },
 
@@ -1087,6 +1631,17 @@ const UI = {
             if(Math.abs(rx) < size/2 && Math.abs(ry) < size/2) {
                 mx.fillStyle = 'red';
                 mx.fillRect(rx, ry, 2, 2);
+            }
+            // Special color for boss
+            if (e.type === 'orc_king') {
+                mx.fillStyle = '#f0f'; // Magenta for boss
+                mx.fillRect(rx-2, ry-2, 6, 6);
+            }
+        });
+        Game.entities.forEach(e => {
+            if (e instanceof NPC) {
+                mx.fillStyle = 'cyan';
+                mx.fillRect((e.x - Game.player.x) * scale, (e.y - Game.player.y) * scale, 3, 3);
             }
         });
 
