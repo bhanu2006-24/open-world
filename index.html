@@ -75,6 +75,7 @@
         }
         .bar-fill { height: 100%; transition: width 0.2s; }
         .hp-fill { background: var(--health); }
+        .mana-fill { background: var(--mana); }
         .xp-fill { background: var(--xp); }
         .label { font-size: 18px; color: #ccc; text-shadow: 1px 1px 0 #000; }
         
@@ -603,6 +604,16 @@ const Assets = {
             ctx.fillStyle = '#000'; ctx.fillRect(12, 12, 3, 3); ctx.fillRect(18, 12, 3, 3);
         });
 
+        // ENEMY: FOREST GUARDIAN
+        this.createSprite('forest_guardian', 64, 64, (ctx) => {
+            ctx.fillStyle = '#2e7d32'; // Dark green
+            ctx.fillRect(20, 20, 24, 40); // Body
+            ctx.fillStyle = '#1b5e20'; // Darker
+            ctx.fillRect(16, 16, 32, 16); // Shoulders
+            ctx.fillStyle = '#fff'; ctx.fillRect(26, 26, 4, 4); ctx.fillRect(34, 26, 4, 4); // Eyes
+            ctx.fillStyle = '#8d6e63'; ctx.fillRect(28, 40, 8, 20); // Legs
+        });
+
         // PROJECTILE: ARROW
         this.createSprite('projectile_arrow', 16, 16, (ctx) => {
             ctx.fillStyle = '#852'; ctx.fillRect(0, 7, 14, 2); // Shaft
@@ -1007,14 +1018,21 @@ class Player extends Entity {
         this.activeQuest = quest;
         this.activeQuest.progress = 0;
         UI.showQuest(quest);
+        // Special spawns
+        if (quest.id === 'forestGuardian') {
+            const bossX = Game.player.x + (Math.random() - 0.5) * 400;
+            const bossY = Game.player.y - 300;
+            Game.entities.push(new Enemy(bossX, bossY, 'forest_guardian'));
+            UI.notify("A Forest Guardian has appeared in the woods!", "red");
+        }
     }
 }
 
 class Enemy extends Entity {
     constructor(x, y, type) {
         super(x, y, type);
-        this.hp = { orc: 30, slime: 15, skeleton: 20, orc_king: 250, sand_golem: 80, ghost: 25 }[type];
-        this.speed = { orc: 60, slime: 40, skeleton: 50, orc_king: 40, sand_golem: 30, ghost: 70 }[type];
+        this.hp = { orc: 30, slime: 15, skeleton: 20, orc_king: 250, sand_golem: 80, ghost: 25, forest_guardian: 150 }[type];
+        this.speed = { orc: 60, slime: 40, skeleton: 50, orc_king: 40, sand_golem: 30, ghost: 70, forest_guardian: 20 }[type];
     }
     takeDamage(amount) {
         this.hp -= amount;
@@ -1025,7 +1043,7 @@ class Enemy extends Entity {
 
         if (this.hp <= 0) {
             this.dead = true;
-            const xpGain = { orc: 15, slime: 5, skeleton: 10, orc_king: 200, sand_golem: 50, ghost: 20 }[this.type];
+            const xpGain = { orc: 15, slime: 5, skeleton: 10, orc_king: 200, sand_golem: 50, ghost: 20, forest_guardian: 100 }[this.type];
             Game.player.gainXp(xpGain);
 
             // Gold drop
@@ -1100,7 +1118,7 @@ class Enemy extends Entity {
                 AudioSys.play('sword'); // Arrow sound
             } else {
                 // Melee attack
-                const damage = { orc: 10, slime: 5, orc_king: 25, sand_golem: 15, ghost: 12 }[this.type];
+                const damage = { orc: 10, slime: 5, orc_king: 25, sand_golem: 15, ghost: 12, forest_guardian: 20 }[this.type];
                 p.takeDamage(damage);
             }
         }
@@ -1239,6 +1257,24 @@ const Input = {
     }
 };
 
+const Skills = {
+    warrior: {
+        strength: { name: 'Strength', desc: '+5 Damage per level', max: 5 },
+        vitality: { name: 'Vitality', desc: '+10 Max HP per level', max: 5 },
+        berserk: { name: 'Berserk', desc: '+10% Attack Speed per level', max: 3 }
+    },
+    ranger: {
+        precision: { name: 'Precision', desc: '+10% Damage with bows per level', max: 5 },
+        swiftness: { name: 'Swiftness', desc: '+20 Speed per level', max: 5 },
+        eagle_eye: { name: 'Eagle Eye', desc: '+50% Range per level', max: 3 }
+    },
+    mage: {
+        intellect: { name: 'Intellect', desc: '+5 Max Mana per level', max: 5 },
+        focus: { name: 'Focus', desc: '+20% Mana Regen per level', max: 5 },
+        arcane_power: { name: 'Arcane Power', desc: '+15% Magic Damage per level', max: 3 }
+    }
+};
+
 const Quests = {
     slimeMenace: {
         id: 'slimeMenace',
@@ -1280,11 +1316,51 @@ const Quests = {
         target: 'orc_king', needed: 1,
         reward: { xp: 500, gold: 100 },
         completionText: "Incredible! The legends were true. Thank you, hero. This knowledge is priceless."
+    },
+    craftSword: {
+        id: 'craftSword',
+        title: "Forging a Legend",
+        npc: 'Blacksmith',
+        description: "I need materials to craft a powerful sword. Bring me 5 iron ore and 2 leather strips.",
+        type: 'GATHER',
+        requirements: { iron_ore: 5, leather_strip: 2 },
+        reward: { xp: 200, gold: 150, item: { id: 'legendary_sword', slot: 'weapon', power: 15, name: 'Legendary Sword' } },
+        completionText: "Excellent! Here's your sword, forged with the finest materials."
+    },
+    investigateRuins: {
+        id: 'investigateRuins',
+        title: "Mysterious Ruins",
+        npc: 'Librarian',
+        description: "Strange lights have been seen near the ancient ruins. Go investigate and report back what you find.",
+        type: 'TALK_TO',
+        target: 'Shady Figure',
+        reward: { xp: 100, gold: 50 },
+        completionText: "Thank you for your bravery. The ruins hold secrets we must protect."
+    },
+    forestGuardian: {
+        id: 'forestGuardian',
+        title: "The Forest Guardian",
+        npc: 'Guard Captain',
+        description: "A fearsome Forest Guardian protects the deep woods. Defeat it to ensure safe passage.",
+        target: 'forest_guardian', needed: 1,
+        reward: { xp: 400, gold: 300 },
+        completionText: "You've done it! The woods are safer now."
     }
 };
 
 const Items = {
-    // ... will be populated later
+    sword: { type: 'sword', slot: 'weapon', power: 5, name: 'Iron Sword' },
+    battle_axe: { type: 'axe', slot: 'weapon', power: 12, name: 'Battle Axe' },
+    bow: { type: 'bow', slot: 'weapon', power: 7, name: 'Wooden Bow' },
+    staff: { type: 'staff', slot: 'weapon', power: 3, name: 'Apprentice Staff' },
+    fire_staff: { type: 'staff', slot: 'weapon', power: 6, name: 'Fire Staff' },
+    armor: { type: 'armor', slot: 'armor', power: 2, name: 'Leather Armor' },
+    steel_armor: { type: 'armor', slot: 'armor', power: 5, name: 'Steel Armor' },
+    legendary_sword: { type: 'sword', slot: 'weapon', power: 15, name: 'Legendary Sword' },
+    iron_ore: { type: 'material', name: 'Iron Ore' },
+    leather_strip: { type: 'material', name: 'Leather Strip' },
+    potion: { type: 'consumable', name: 'Health Potion' },
+    get(id) { return this[id]; }
 };
 
 
@@ -1415,6 +1491,17 @@ const Game = {
         const oldMan = new NPC(oldManPos.x, oldManPos.y, 'npc_old_man', 'Old Man');
         oldMan.interaction = () => UI.showDialogue(oldMan);
         this.entities.push(oldMan);
+
+        const librarianPos = findSafeSpot(spawnX + 140, spawnY + 60);
+        const librarian = new NPC(librarianPos.x, librarianPos.y, 'npc_wizard', 'Librarian'); // Reuse wizard sprite
+        librarian.interaction = () => UI.showDialogue(librarian);
+        this.entities.push(librarian);
+
+        const shadyPos = findSafeSpot(spawnX + 200, spawnY + 100);
+        const shadyFigure = new NPC(shadyPos.x, shadyPos.y, 'npc_merchant', 'Shady Figure'); // Reuse merchant
+        shadyFigure.interaction = () => UI.showDialogue(shadyFigure);
+        this.entities.push(shadyFigure);
+
         this.entities.push(merchant);
 
         // Add a blacksmith
@@ -1519,7 +1606,13 @@ const Game = {
             const ex = this.player.x + Math.cos(angle) * dist;
             const ey = this.player.y + Math.sin(angle) * dist;
             if (!World.isSolid(ex, ey)) {
-                const type = Math.random() > 0.3 ? 'orc' : (Math.random() > 0.5 ? 'slime' : 'skeleton');
+                const light = (Math.sin(this.dayTime) + 1) / 2;
+                let type;
+                if (light < 0.2) { // Night
+                    type = Math.random() > 0.5 ? 'ghost' : (Math.random() > 0.5 ? 'skeleton' : 'orc');
+                } else {
+                    type = Math.random() > 0.3 ? 'orc' : (Math.random() > 0.5 ? 'slime' : 'skeleton');
+                }
                 this.entities.push(new Enemy(ex, ey, type));
             }
         }
@@ -1555,6 +1648,10 @@ const Game = {
         // Draw Library
         const librarySprite = Assets.cache['building_library'];
         this.ctx.drawImage(librarySprite, this.spawnPoint.x + 128 - librarySprite.width/2, this.spawnPoint.y + 50 - librarySprite.height/2);
+
+        // Draw Forge
+        const forgeSprite = Assets.cache['building_house']; // Reuse house sprite for forge
+        this.ctx.drawImage(forgeSprite, this.spawnPoint.x - 150 - forgeSprite.width/2, this.spawnPoint.y - 50 - forgeSprite.height/2);
 
         // 1. Draw Tiles (Optimized Culling)
         const startCol = Math.floor(this.cam.x / World.tileSize);
@@ -1686,9 +1783,12 @@ const UI = {
         const p = Game.player;
         document.getElementById('hp-val').innerText = `${Math.ceil(p.baseStats.hp)}/${p.stats.maxHp}`;
         document.getElementById('hp-bar').style.width = `${(p.stats.hp/p.stats.maxHp)*100}%`;
+        document.getElementById('mana-val').innerText = `${Math.ceil(p.baseStats.mana)}/${p.stats.maxMana}`;
+        document.getElementById('mana-bar').style.width = `${(p.stats.mana/p.stats.maxMana)*100}%`;
         document.getElementById('xp-bar').style.width = `${(p.baseStats.xp/(p.baseStats.lvl*100))*100}%`;
         document.getElementById('lvl-val').innerText = p.baseStats.lvl;
         document.getElementById('gold-val').innerText = p.stats.gold;
+        document.getElementById('skill-points-val').innerText = p.baseStats.skillPoints;
 
         // Ability Cooldowns
         const wwCooldown = p.abilityCooldowns.whirlwind || 0;
@@ -1749,6 +1849,7 @@ const UI = {
                     slot.appendChild(countEl);
                 }
 
+                slot.title = item.name + (item.power ? ` (Power: ${item.power})` : '');
                 if (item.slot) { // Is equippable
                     slot.onclick = () => Game.player.equip(item);
                 } else { // Is consumable
@@ -1773,6 +1874,7 @@ const UI = {
                     const img = new Image();
                     img.src = Assets.cache['item_' + equippedItem.id].toDataURL();
                     slot.appendChild(img);
+                    slot.title = equippedItem.name + (equippedItem.power ? ` (Power: ${equippedItem.power})` : '');
                 }
                 equipGrid.appendChild(slot);
             });
@@ -1809,14 +1911,27 @@ const UI = {
         } else if (npc.name === 'Merchant') {
             quest = Quests.orcMaterials;
         } else if (npc.name === 'Guard Captain') {
-            quest = Quests.golemProblem;
+            quest = Quests.forestGuardian;
         } else if (npc.name === 'Old Man') {
             quest = Quests.ancientKnowledge;
+        } else if (npc.name === 'Librarian') {
+            quest = Quests.investigateRuins;
         } else if (npc.name === 'Blacksmith') {
-            // The blacksmith can have multiple quests or crafting dialogues
-            // For now, let's just give him one.
-            textEl.innerText = "Need some fine steel? Bring me the materials, I'll forge it.";
-            optionsEl.innerHTML = `<button onclick="UI.closeDialogue()">I'll see what I can find.</button>`;
+            textEl.innerText = "I can craft powerful items if you bring the materials. What would you like?";
+            optionsEl.innerHTML = `
+                <button onclick="UI.showCrafting('legendary_sword')">Craft Legendary Sword (5 Iron Ore, 2 Leather Strips)</button>
+                <button onclick="UI.closeDialogue()">Nevermind</button>
+            `;
+            return;
+        } else if (npc.name === 'Shady Figure') {
+            textEl.innerText = "Strange lights in the ruins, eh? I saw some weird shadows moving around. Be careful out there.";
+            optionsEl.innerHTML = `<button onclick="UI.closeDialogue()">Thanks for the warning.</button>`;
+            // Check for quest progress
+            const q = Game.player.activeQuest;
+            if (q && q.type === 'TALK_TO' && q.target === 'Shady Figure' && q.progress < q.needed) {
+                q.progress++;
+                UI.updateQuest();
+            }
             return;
         } else {
             textEl.innerText = "Greetings, traveler."; optionsEl.innerHTML = `<button onclick="UI.closeDialogue()">Goodbye</button>`; return;
@@ -1828,7 +1943,40 @@ const UI = {
         const activeQuest = p.activeQuest;
 
         // Check for quest turn-in
-        if (activeQuest && activeQuest.id === quest.id && activeQuest.progress >= activeQuest.needed) {
+        let canComplete = false;
+        if (activeQuest && activeQuest.id === quest.id) {
+            canComplete = activeQuest.progress >= activeQuest.needed;
+            if (quest.type === 'GATHER') {
+                // Check inventory
+                const req = quest.requirements;
+                const invCount = {};
+                p.inventory.forEach(i => invCount[i.id] = (invCount[i.id] || 0) + (i.count || 1));
+                canComplete = true;
+                for (let mat in req) {
+                    if ((invCount[mat] || 0) < req[mat]) canComplete = false;
+                }
+                if (canComplete) {
+                    // Remove materials
+                    for (let mat in req) {
+                        let needed = req[mat];
+                        p.inventory = p.inventory.filter(i => {
+                            if (i.id === mat && needed > 0) {
+                                if (i.count) {
+                                    i.count -= needed;
+                                    needed = 0;
+                                    if (i.count <= 0) return false;
+                                } else {
+                                    needed--;
+                                    return false;
+                                }
+                            }
+                            return true;
+                        });
+                    }
+                }
+            }
+        }
+        if (canComplete) {
             textEl.innerText = quest.completionText;
             p.gainXp(quest.reward.xp);
             p.baseStats.gold += quest.reward.gold;
@@ -1931,9 +2079,10 @@ const UI = {
             img.src = Assets.cache['item_' + shopItem.item.id].toDataURL();
             img.style.marginBottom = '10px';
 
+            slot.title = shopItem.item.name + (shopItem.item.power ? ` (Power: ${shopItem.item.power})` : '');
             const info = document.createElement('div');
             info.innerText = `${shopItem.item.id}\n🪙 ${shopItem.cost}`;
-            
+
             slot.appendChild(img);
             slot.appendChild(info);
 
@@ -1967,6 +2116,43 @@ const UI = {
         document.getElementById('shop-screen').classList.add('hidden');
     },
 
+    showCrafting(itemId) {
+        const p = Game.player;
+        const item = Items.get(itemId);
+        const req = { iron_ore: 5, leather_strip: 2 }; // Hardcoded for now
+        let hasAll = true;
+        const invCount = {};
+        p.inventory.forEach(i => invCount[i.id] = (invCount[i.id] || 0) + (i.count || 1));
+        for (let mat in req) {
+            if ((invCount[mat] || 0) < req[mat]) hasAll = false;
+        }
+        if (hasAll) {
+            // Remove materials
+            for (let mat in req) {
+                let needed = req[mat];
+                p.inventory = p.inventory.filter(i => {
+                    if (i.id === mat && needed > 0) {
+                        if (i.count) {
+                            i.count -= needed;
+                            needed = 0;
+                            if (i.count <= 0) return false;
+                        } else {
+                            needed--;
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+            }
+            // Add crafted item
+            p.inventory.push(item);
+            this.notify(`Crafted ${item.name}!`, 'lime');
+        } else {
+            this.notify("You don't have the required materials.", 'red');
+        }
+        UI.closeDialogue();
+    },
+
     drawMinimap() {
         if(!this.minimapCanvas) {
             this.minimapCanvas = document.getElementById('minimap');
@@ -1977,6 +2163,81 @@ const UI = {
     toggleSkillTree() {
         const el = document.getElementById('skill-tree-screen');
         el.classList.toggle('hidden');
+        if (!el.classList.contains('hidden')) {
+            this.generateSkillTree();
+        }
+    },
+
+    generateSkillTree() {
+        const container = document.getElementById('skill-tree-container');
+        container.innerHTML = '';
+        const p = Game.player;
+
+        Object.keys(Skills).forEach(path => {
+            const pathDiv = document.createElement('div');
+            pathDiv.style.width = '30%';
+            const title = document.createElement('h3');
+            title.innerText = path.charAt(0).toUpperCase() + path.slice(1);
+            pathDiv.appendChild(title);
+
+            Object.keys(Skills[path]).forEach(skillId => {
+                const skill = Skills[path][skillId];
+                const skillDiv = document.createElement('div');
+                skillDiv.style.margin = '10px 0';
+                skillDiv.style.padding = '10px';
+                skillDiv.style.border = '1px solid #444';
+                skillDiv.style.background = '#222';
+
+                const name = document.createElement('div');
+                name.innerText = skill.name;
+                name.style.fontWeight = 'bold';
+                name.style.color = '#fff';
+
+                const desc = document.createElement('div');
+                desc.innerText = skill.desc;
+                desc.style.fontSize = '14px';
+                desc.style.color = '#ccc';
+
+                const level = p.skills[skillId] || 0;
+                const levelDiv = document.createElement('div');
+                levelDiv.innerText = `Level: ${level}/${skill.max}`;
+                levelDiv.style.color = level >= skill.max ? '#0f0' : '#ff0';
+
+                const button = document.createElement('button');
+                button.innerText = 'Upgrade';
+                button.disabled = p.baseStats.skillPoints <= 0 || level >= skill.max;
+                button.onclick = () => {
+                    if (p.baseStats.skillPoints > 0 && level < skill.max) {
+                        p.skills[skillId] = (p.skills[skillId] || 0) + 1;
+                        p.baseStats.skillPoints--;
+                        this.applySkillEffect(skillId, p.skills[skillId]);
+                        this.toggleSkillTree(); // Refresh
+                    }
+                };
+
+                skillDiv.appendChild(name);
+                skillDiv.appendChild(desc);
+                skillDiv.appendChild(levelDiv);
+                skillDiv.appendChild(button);
+                pathDiv.appendChild(skillDiv);
+            });
+
+            container.appendChild(pathDiv);
+        });
+    },
+
+    applySkillEffect(skillId, level) {
+        const p = Game.player;
+        if (skillId === 'strength') p.stats.dmg += 5;
+        else if (skillId === 'vitality') p.stats.maxHp += 10;
+        else if (skillId === 'berserk') p.stats.attackSpeed += 0.1;
+        else if (skillId === 'precision') { /* apply to bow damage */ }
+        else if (skillId === 'swiftness') p.speed += 20;
+        else if (skillId === 'eagle_eye') { /* increase range */ }
+        else if (skillId === 'intellect') p.stats.maxMana += 5;
+        else if (skillId === 'focus') p.stats.manaRegen += 0.2;
+        else if (skillId === 'arcane_power') { /* magic damage */ }
+        p.recalculateStats();
     },
 
     drawMinimap() {
